@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from truck_ready.models import (
+    Action,
     ChecklistItem,
     InventoryItem,
     Job,
@@ -21,7 +22,11 @@ from truck_ready.models import (
 
 
 def build_stock_index(inventory: list[InventoryItem]) -> dict[str, InventoryItem]:
-    """Index inventory by normalized SKU for O(1) lookups."""
+    """Index inventory by normalized SKU for O(1) lookups.
+
+    If duplicate SKUs exist, the last entry wins. Callers should
+    deduplicate inventory before calling if that matters.
+    """
     return {item.sku: item for item in inventory}
 
 
@@ -29,7 +34,12 @@ def check_job_parts(
     job: Job,
     stock_index: dict[str, InventoryItem],
 ) -> PartsCheckResult:
-    """Evaluate every required part for a single job against current stock."""
+    """Evaluate every required part for a single job against current stock.
+
+    Note: this is a per-job view against the full stock snapshot.
+    It does not reserve stock across jobs. Use build_pre_departure_checklist
+    for the aggregated, honest truck-level picture.
+    """
     parts: list[PartAvailability] = []
     ready = 0
     missing = 0
@@ -95,14 +105,21 @@ def build_pre_departure_checklist(
 ) -> PreDepartureChecklist:
     """Produce the single artifact a technician needs before rolling.
 
-    Aggregates across all jobs so the tech stages once instead of
-    discovering missing parts job-by-job.
+    Aggregates demand across all jobs so the tech stages once.
+
+    Rules:
+    - If available >= needed → STAGE the full quantity.
+    - If 0 < available < needed → STAGE what is on the truck AND
+      PICK_UP the shortfall. Both lines appear.
+    - If available == 0 → PICK_UP the full need.
+    - REORDER when the part is below reorder point, or when the SKU
+      is completely absent from inventory (not stocked at all).
     """
     results = check_all_jobs(jobs, inventory)
     stock_index = build_stock_index(inventory)
 
-    # Aggregate demand across jobs: sku → (total needed, highest urgency, job ids, name)
-    demand: dict[str, dict] = defaultdict(
+    # Aggregate demand: sku → total needed, highest urgency, job ids, name
+    demand: dict[str, dict[str, object]] = defaultdict(
         lambda: {
             "needed": 0,
             "urgency": Urgency.LOW,
@@ -114,10 +131,12 @@ def build_pre_departure_checklist(
     for job, result in zip(jobs, results, strict=True):
         for part in result.parts:
             entry = demand[part.sku]
-            entry["needed"] += part.quantity_needed
+            entry["needed"] = int(entry["needed"]) + part.quantity_needed  # type: ignore[arg-type]
             entry["name"] = part.name
-            entry["jobs"].append(job.job_id)
-            if _urgency_rank(part.urgency) < _urgency_rank(entry["urgency"]):
+            jobs_list: list[str] = entry["jobs"]  # type: ignore[assignment]
+            jobs_list.append(job.job_id)
+            current_urgency: Urgency = entry["urgency"]  # type: ignore[assignment]
+            if _urgency_rank(part.urgency) < _urgency_rank(current_urgency):
                 entry["urgency"] = part.urgency
 
     to_stage: list[ChecklistItem] = []
@@ -127,55 +146,86 @@ def build_pre_departure_checklist(
     for sku, info in demand.items():
         on_hand = stock_index.get(sku)
         available = on_hand.quantity if on_hand else 0
-        needed = info["needed"]
+        needed = int(info["needed"])  # type: ignore[arg-type]
         shortfall = max(0, needed - available)
+        urgency: Urgency = info["urgency"]  # type: ignore[assignment]
+        name = str(info["name"])
+        related = sorted(set(info["jobs"]))  # type: ignore[arg-type]
 
-        if shortfall == 0:
+        # Stage whatever is actually on the truck
+        if available > 0:
+            stage_qty = min(available, needed)
             to_stage.append(
                 ChecklistItem(
                     sku=sku,
-                    name=info["name"],
-                    quantity=needed,
-                    action="STAGE",
-                    urgency=info["urgency"],
-                    related_jobs=sorted(set(info["jobs"])),
+                    name=name,
+                    quantity=stage_qty,
+                    action=Action.STAGE,
+                    urgency=urgency,
+                    related_jobs=related,
                     notes="On truck — stage before departure",
                 )
             )
-        else:
+
+        # Pick up the shortfall
+        if shortfall > 0:
             missing.append(
                 ChecklistItem(
                     sku=sku,
-                    name=info["name"],
+                    name=name,
                     quantity=shortfall,
-                    action="PICK_UP",
-                    urgency=info["urgency"],
-                    related_jobs=sorted(set(info["jobs"])),
+                    action=Action.PICK_UP,
+                    urgency=urgency,
+                    related_jobs=related,
                     notes=f"Need {shortfall} more (have {available})",
                 )
             )
-            # Also surface as reorder suggestion when below reorder point
-            if on_hand and on_hand.quantity <= on_hand.reorder_point:
-                reorder.append(
-                    ChecklistItem(
-                        sku=sku,
-                        name=info["name"],
-                        quantity=max(on_hand.reorder_point * 2, shortfall),
-                        action="REORDER",
-                        urgency=info["urgency"],
-                        related_jobs=sorted(set(info["jobs"])),
-                        notes="Below reorder point + active demand",
-                    )
-                )
 
-    # Sort by urgency so critical items float to the top
+        # Reorder when below reorder point OR SKU not stocked at all
+        if on_hand is None:
+            # Completely missing from inventory records
+            reorder.append(
+                ChecklistItem(
+                    sku=sku,
+                    name=name,
+                    quantity=max(needed, 2),
+                    action=Action.REORDER,
+                    urgency=urgency,
+                    related_jobs=related,
+                    notes="Not in inventory — add to stock list",
+                )
+            )
+        elif on_hand.quantity <= on_hand.reorder_point:
+            reorder.append(
+                ChecklistItem(
+                    sku=sku,
+                    name=name,
+                    quantity=max(on_hand.reorder_point * 2, shortfall or on_hand.reorder_point),
+                    action=Action.REORDER,
+                    urgency=urgency,
+                    related_jobs=related,
+                    notes="Below reorder point + active demand",
+                )
+            )
+
     to_stage.sort(key=lambda i: _urgency_rank(i.urgency))
     missing.sort(key=lambda i: _urgency_rank(i.urgency))
     reorder.sort(key=lambda i: _urgency_rank(i.urgency))
 
     total_required = len(demand)
-    ready_count = len(to_stage)
-    score = (ready_count / total_required) if total_required > 0 else 1.0
+    fully_ready = sum(1 for info in demand.values() if int(info["needed"]) <= (  # type: ignore[arg-type]
+        stock_index[sku].quantity if (sku := next(  # noqa: F841
+            (s for s, i in demand.items() if i is info), ""
+        )) in stock_index else 0
+    ))
+    # Simpler readiness: fraction of SKUs with zero shortfall
+    ready_skus = 0
+    for sku, info in demand.items():
+        available = stock_index[sku].quantity if sku in stock_index else 0
+        if int(info["needed"]) <= available:  # type: ignore[arg-type]
+            ready_skus += 1
+
+    score = (ready_skus / total_required) if total_required > 0 else 1.0
 
     if not missing:
         summary = (
@@ -208,26 +258,80 @@ def default_parts_for_job_type(job_type: str) -> list[RequiredPart]:
     normalized = job_type.strip().lower()
 
     common_service = [
-        RequiredPart(sku="CAP-45-5", name="Dual Run Capacitor 45/5 MFD", quantity_needed=1, urgency=Urgency.HIGH),
-        RequiredPart(sku="CAP-35-5", name="Dual Run Capacitor 35/5 MFD", quantity_needed=1, urgency=Urgency.MEDIUM),
-        RequiredPart(sku="CONT-30A", name="Contactor 30A 1-Pole", quantity_needed=1, urgency=Urgency.HIGH),
-        RequiredPart(sku="FILTER-20x25", name="Air Filter 20x25x1 MERV 8", quantity_needed=2, urgency=Urgency.LOW),
+        RequiredPart(
+            sku="CAP-45-5",
+            name="Dual Run Capacitor 45/5 MFD",
+            quantity_needed=1,
+            urgency=Urgency.HIGH,
+        ),
+        RequiredPart(
+            sku="CAP-35-5",
+            name="Dual Run Capacitor 35/5 MFD",
+            quantity_needed=1,
+            urgency=Urgency.MEDIUM,
+        ),
+        RequiredPart(
+            sku="CONT-30A",
+            name="Contactor 30A 1-Pole",
+            quantity_needed=1,
+            urgency=Urgency.HIGH,
+        ),
+        RequiredPart(
+            sku="FILTER-20x25",
+            name="Air Filter 20x25x1 MERV 8",
+            quantity_needed=2,
+            urgency=Urgency.LOW,
+        ),
     ]
 
     if "install" in normalized or "heat_pump" in normalized or "replacement" in normalized:
         return [
-            RequiredPart(sku="LINESET-50", name="Line Set 50 ft", quantity_needed=1, urgency=Urgency.CRITICAL),
-            RequiredPart(sku="PAD-CONC", name="Concrete Pad", quantity_needed=1, urgency=Urgency.HIGH),
-            RequiredPart(sku="WHIP-6/3", name="Disconnect Whip 6/3", quantity_needed=1, urgency=Urgency.HIGH),
-            RequiredPart(sku="FILTER-20x25", name="Air Filter 20x25x1 MERV 8", quantity_needed=2, urgency=Urgency.MEDIUM),
+            RequiredPart(
+                sku="LINESET-50",
+                name="Line Set 50 ft",
+                quantity_needed=1,
+                urgency=Urgency.CRITICAL,
+            ),
+            RequiredPart(
+                sku="PAD-CONC",
+                name="Concrete Pad",
+                quantity_needed=1,
+                urgency=Urgency.HIGH,
+            ),
+            RequiredPart(
+                sku="WHIP-6/3",
+                name="Disconnect Whip 6/3",
+                quantity_needed=1,
+                urgency=Urgency.HIGH,
+            ),
+            RequiredPart(
+                sku="FILTER-20x25",
+                name="Air Filter 20x25x1 MERV 8",
+                quantity_needed=2,
+                urgency=Urgency.MEDIUM,
+            ),
         ]
 
     if "maintenance" in normalized or "tune" in normalized:
         return [
-            RequiredPart(sku="FILTER-20x25", name="Air Filter 20x25x1 MERV 8", quantity_needed=2, urgency=Urgency.MEDIUM),
-            RequiredPart(sku="FILTER-16x25", name="Air Filter 16x25x1 MERV 8", quantity_needed=1, urgency=Urgency.LOW),
-            RequiredPart(sku="CAP-45-5", name="Dual Run Capacitor 45/5 MFD", quantity_needed=1, urgency=Urgency.MEDIUM),
+            RequiredPart(
+                sku="FILTER-20x25",
+                name="Air Filter 20x25x1 MERV 8",
+                quantity_needed=2,
+                urgency=Urgency.MEDIUM,
+            ),
+            RequiredPart(
+                sku="FILTER-16x25",
+                name="Air Filter 16x25x1 MERV 8",
+                quantity_needed=1,
+                urgency=Urgency.LOW,
+            ),
+            RequiredPart(
+                sku="CAP-45-5",
+                name="Dual Run Capacitor 45/5 MFD",
+                quantity_needed=1,
+                urgency=Urgency.MEDIUM,
+            ),
         ]
 
-    # Default / emergency repair
     return common_service
