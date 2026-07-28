@@ -7,6 +7,7 @@ from truck_ready.core import (
     default_parts_for_job_type,
 )
 from truck_ready.models import (
+    Action,
     ChecklistItem,
     InventoryItem,
     Job,
@@ -18,6 +19,7 @@ from truck_ready.models import (
 )
 
 __all__ = [
+    "Action",
     "ChecklistItem",
     "InventoryItem",
     "Job",
