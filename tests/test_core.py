@@ -9,7 +9,7 @@ from truck_ready.core import (
     check_job_parts,
     default_parts_for_job_type,
 )
-from truck_ready.models import InventoryItem, Job, RequiredPart, Urgency
+from truck_ready.models import Action, InventoryItem, Job, RequiredPart, Urgency
 from truck_ready.seed import demo_inventory, demo_jobs
 
 
@@ -85,13 +85,75 @@ def test_build_checklist_produces_actionable_output() -> None:
     assert 0.0 <= checklist.overall_readiness_score <= 1.0
     assert checklist.summary
 
-    # LINESET-50 is in seed inventory with quantity 0 → must appear in missing
     missing_skus = {item.sku for item in checklist.items_missing}
     assert "LINESET-50" in missing_skus
 
-    # Capacitors and filters should be stageable
     stage_skus = {item.sku for item in checklist.items_to_stage}
     assert "CAP-45-5" in stage_skus or "FILTER-20x25" in stage_skus
+
+
+def test_partial_stock_stages_available_and_flags_shortfall() -> None:
+    """Have 1, need 3 → STAGE 1 + PICK_UP 2."""
+    jobs = [
+        Job(
+            job_id="JOB-A",
+            job_type="Repair",
+            customer_name="A",
+            scheduled_date="2026-07-28",
+            required_parts=[
+                RequiredPart(sku="CAP-45-5", name="Cap", quantity_needed=2, urgency=Urgency.HIGH),
+            ],
+        ),
+        Job(
+            job_id="JOB-B",
+            job_type="Repair",
+            customer_name="B",
+            scheduled_date="2026-07-28",
+            required_parts=[
+                RequiredPart(sku="CAP-45-5", name="Cap", quantity_needed=1, urgency=Urgency.MEDIUM),
+            ],
+        ),
+    ]
+    inv = [InventoryItem(sku="CAP-45-5", name="Cap", quantity=1, reorder_point=2)]
+
+    checklist = build_pre_departure_checklist(jobs=jobs, inventory=inv)
+
+    stage_items = [i for i in checklist.items_to_stage if i.sku == "CAP-45-5"]
+    missing_items = [i for i in checklist.items_missing if i.sku == "CAP-45-5"]
+
+    assert len(stage_items) == 1
+    assert stage_items[0].quantity == 1
+    assert stage_items[0].action == Action.STAGE
+
+    assert len(missing_items) == 1
+    assert missing_items[0].quantity == 2
+    assert missing_items[0].action == Action.PICK_UP
+
+
+def test_absent_sku_generates_reorder() -> None:
+    """SKU not in inventory at all must still produce a REORDER line."""
+    jobs = [
+        Job(
+            job_id="JOB-X",
+            job_type="Install",
+            customer_name="X",
+            scheduled_date="2026-07-28",
+            required_parts=[
+                RequiredPart(
+                    sku="LINESET-50",
+                    name="Line Set",
+                    quantity_needed=1,
+                    urgency=Urgency.CRITICAL,
+                ),
+            ],
+        ),
+    ]
+    # Empty inventory — SKU completely absent
+    checklist = build_pre_departure_checklist(jobs=jobs, inventory=[])
+
+    assert any(i.sku == "LINESET-50" and i.action == Action.PICK_UP for i in checklist.items_missing)
+    assert any(i.sku == "LINESET-50" and i.action == Action.REORDER for i in checklist.reorder_suggestions)
+    assert not any(i.sku == "LINESET-50" for i in checklist.items_to_stage)
 
 
 def test_default_parts_for_common_types() -> None:
