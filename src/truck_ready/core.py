@@ -183,7 +183,6 @@ def build_pre_departure_checklist(
 
         # Reorder when below reorder point OR SKU not stocked at all
         if on_hand is None:
-            # Completely missing from inventory records
             reorder.append(
                 ChecklistItem(
                     sku=sku,
@@ -200,7 +199,10 @@ def build_pre_departure_checklist(
                 ChecklistItem(
                     sku=sku,
                     name=name,
-                    quantity=max(on_hand.reorder_point * 2, shortfall or on_hand.reorder_point),
+                    quantity=max(
+                        on_hand.reorder_point * 2,
+                        shortfall or on_hand.reorder_point,
+                    ),
                     action=Action.REORDER,
                     urgency=urgency,
                     related_jobs=related,
@@ -213,12 +215,6 @@ def build_pre_departure_checklist(
     reorder.sort(key=lambda i: _urgency_rank(i.urgency))
 
     total_required = len(demand)
-    fully_ready = sum(1 for info in demand.values() if int(info["needed"]) <= (  # type: ignore[arg-type]
-        stock_index[sku].quantity if (sku := next(  # noqa: F841
-            (s for s, i in demand.items() if i is info), ""
-        )) in stock_index else 0
-    ))
-    # Simpler readiness: fraction of SKUs with zero shortfall
     ready_skus = 0
     for sku, info in demand.items():
         available = stock_index[sku].quantity if sku in stock_index else 0
