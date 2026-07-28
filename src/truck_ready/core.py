@@ -280,7 +280,11 @@ def default_parts_for_job_type(job_type: str) -> list[RequiredPart]:
         ),
     ]
 
-    if "install" in normalized or "heat_pump" in normalized or "replacement" in normalized:
+    if (
+        "install" in normalized
+        or "heat_pump" in normalized
+        or "replacement" in normalized
+    ):
         return [
             RequiredPart(
                 sku="LINESET-50",
