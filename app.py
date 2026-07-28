@@ -1,7 +1,7 @@
 """Streamlit entry point for Truck Ready HVAC.
 
 Minimal, focused UI around the single closed loop:
-jobs + stock → pre-departure checklist → offline export.
+jobs + stock → pre-departure checklist → offline export (JSON + PDF).
 
 Supports demo data and real contractor CSV uploads.
 """
@@ -13,6 +13,7 @@ import streamlit as st
 from truck_ready.core import build_pre_departure_checklist
 from truck_ready.export import checklist_to_json_string
 from truck_ready.io import CSVLoadError, load_inventory_csv, load_jobs_csv
+from truck_ready.pdf import checklist_to_pdf_bytes
 from truck_ready.seed import demo_inventory, demo_jobs
 
 st.set_page_config(
@@ -72,7 +73,7 @@ with st.sidebar:
         1. Jobs + truck stock
         2. Parts availability
         3. Pre-departure checklist
-        4. Offline export
+        4. Offline export (JSON + PDF)
         """
     )
     st.caption("CSV column reference: docs/CSV_FORMAT.md")
@@ -149,15 +150,30 @@ with tab_reorder:
 
 with tab_export:
     st.markdown(
-        "Download a self-contained JSON checklist the tech can open offline."
+        "Download a self-contained checklist the tech can use offline or print."
     )
-    json_payload = checklist_to_json_string(checklist)
-    st.download_button(
-        label="Download Offline Checklist (JSON)",
-        data=json_payload,
-        file_name="truck_ready_checklist.json",
-        mime="application/json",
-        use_container_width=True,
-    )
+    col_json, col_pdf = st.columns(2)
+
+    with col_json:
+        json_payload = checklist_to_json_string(checklist)
+        st.download_button(
+            label="Download Offline Checklist (JSON)",
+            data=json_payload,
+            file_name="truck_ready_checklist.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+
+    with col_pdf:
+        pdf_bytes = checklist_to_pdf_bytes(checklist)
+        st.download_button(
+            label="Download Printable Checklist (PDF)",
+            data=pdf_bytes,
+            file_name="truck_ready_checklist.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary",
+        )
+
     with st.expander("Preview JSON"):
         st.code(json_payload, language="json")

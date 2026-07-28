@@ -18,6 +18,7 @@ from truck_ready.models import (
     RequiredPart,
     Urgency,
 )
+from truck_ready.pdf import checklist_to_pdf_bytes
 
 __all__ = [
     "Action",
@@ -33,9 +34,10 @@ __all__ = [
     "build_pre_departure_checklist",
     "check_all_jobs",
     "check_job_parts",
+    "checklist_to_pdf_bytes",
     "default_parts_for_job_type",
     "load_inventory_csv",
     "load_jobs_csv",
 ]
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"

@@ -6,7 +6,7 @@ Short, high-signal instructions for any coding agent working on this repository.
 
 One closed loop for small HVAC contractors:
 
-**jobs + truck stock → parts availability → pre-departure checklist → offline export**
+**jobs + truck stock → parts availability → pre-departure checklist → offline export (JSON + PDF)**
 
 Nothing else. No multi-agent platform, no orchestration layer, no AI copilot surface.
 
@@ -77,27 +77,29 @@ src/truck_ready/
   models.py      # Pydantic domain models (Urgency, Action, InventoryItem, Job, …)
   core.py        # Pure functions only
   export.py      # JSON serialization for offline use
+  pdf.py         # Printable PDF adapter (fpdf2)
   io.py          # CSV → domain model loaders (thin adapter)
   seed.py        # Demo data
 app.py           # Streamlit thin UI
 tests/           # pytest, importlib mode
 data/samples/    # Example CSVs for pilots
 docs/            # Longer architecture + CSV format notes
+requirements.txt # Streamlit Community Cloud runtime deps
 ```
 
 ## How to extend safely
 
 - New domain rules → pure function in `core.py` + tests.
 - New data source (CSV, future API) → thin adapter under `io.py` or a new adapter module. Never pull I/O into core.
+- New export format (PDF, etc.) → thin adapter (`pdf.py`, `export.py`). Never pull rendering into core.
 - UI changes stay in `app.py` (or a future thin CLI).
-- Prefer stdlib + Pydantic. Do not add pandas, polars, or heavy frameworks without a documented need.
+- Prefer stdlib + Pydantic + fpdf2. Do not add pandas, polars, or heavy frameworks without a documented need.
 
 ## Current next slice
 
-CSV upload path is implemented. Next high-value items (only if a real pilot needs them):
+PDF + JSON offline export is implemented. Next high-value items (only if a real pilot needs them):
 
-- Printable PDF checklist
-- Hosted demo link
+- Hosted demo link on Streamlit Community Cloud
 - Explicit parts column / second parts CSV if contractors supply exact BOMs
 - Optional `schema_version` column once a second pilot forces a breaking change
 

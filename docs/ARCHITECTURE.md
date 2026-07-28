@@ -9,7 +9,7 @@ The product is deliberately narrow:
 1. Jobs + current truck / shop stock
 2. Parts availability evaluation
 3. Prioritized pre-departure checklist (stage / pick-up / reorder)
-4. Offline JSON export
+4. Offline JSON + printable PDF export
 
 ## Layering
 
@@ -17,7 +17,7 @@ The product is deliberately narrow:
 ┌─────────────────────────────────────────┐
 │  app.py (Streamlit) / future CLI        │  thin presentation
 ├─────────────────────────────────────────┤
-│  io.py  ·  export.py  ·  seed.py        │  adapters (I/O allowed)
+│  io.py  ·  export.py  ·  pdf.py  · seed │  adapters (I/O allowed)
 ├─────────────────────────────────────────┤
 │  core.py                                │  pure domain logic
 ├─────────────────────────────────────────┤
@@ -29,7 +29,8 @@ The product is deliberately narrow:
 - **core.py** — pure functions only. No filesystem, no network, no Streamlit, no CSV. Easy to unit-test and reason about under field conditions.
 - **io.py** — CSV → list[InventoryItem] / list[Job]. Validation errors are turned into clear, row-numbered messages suitable for a contractor.
 - **export.py** — checklist → self-contained JSON for offline use.
-- **app.py** — demo + pilot UI. Loads data (demo or CSV), calls core, shows results, offers download.
+- **pdf.py** — checklist → printable PDF (fpdf2). Thin adapter only.
+- **app.py** — demo + pilot UI. Loads data (demo or CSV), calls core, shows results, offers JSON + PDF download.
 
 ## Key domain rules (implemented in core)
 

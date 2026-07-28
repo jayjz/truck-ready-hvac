@@ -2,14 +2,14 @@
 
 **Pre-departure parts checklist for HVAC technicians.**
 
-Stage the right parts before the truck leaves. Export an offline checklist that works with zero signal. Finish more jobs on the first visit.
+Stage the right parts before the truck leaves. Export an offline checklist (JSON or printable PDF) that works with zero signal. Finish more jobs on the first visit.
 
 This is intentionally a single closed loop:
 
 1. Jobs + current truck stock
 2. Parts availability check
 3. Clear pre-departure checklist
-4. Offline JSON / printable export
+4. Offline JSON / printable PDF export
 
 No multi-agent platform. No orchestration theater. One high-signal workflow that maps directly to fewer supply-house runs and higher first-time fix rates.
 
@@ -39,7 +39,7 @@ streamlit run app.py
 1. Prepare two CSVs following [docs/CSV_FORMAT.md](docs/CSV_FORMAT.md).
 2. Sample files live in `data/samples/`.
 3. In the Streamlit UI choose **Upload CSVs** and select your inventory + jobs files.
-4. Review the checklist, then download the offline JSON for the tech.
+4. Review the checklist, then download the offline JSON or printable PDF for the tech.
 
 The core engine never sees the CSV layer — loaders produce domain models, then the pure checklist builder runs unchanged.
 
@@ -51,11 +51,11 @@ The core engine never sees the CSV layer — loaders produce domain models, then
   - Stages what is already on the truck (including partial stock)
   - Flags shortfalls to pick up
   - Suggests reorders for low stock or untracked SKUs
-- Exports a self-contained offline JSON payload the tech can use in the field
+- Exports a self-contained offline JSON payload *and* a printable PDF the tech can use in the field
 
 ## Status
 
-**v0.1.1 — CSV pilot path**
+**v0.2.0 — Printable PDF + CSV pilot path**
 
 - [x] Project scaffolding + strict tooling (ruff, mypy, pytest, src layout)
 - [x] Pydantic domain models + Action enum
@@ -68,8 +68,8 @@ The core engine never sees the CSV layer — loaders produce domain models, then
 - [x] GitHub Actions CI (ruff + pytest)
 - [x] CSV loaders + sample data for real contractor pilots
 - [x] Agent context files (`AGENTS.md`, `docs/`)
-- [ ] Printable PDF checklist
-- [ ] Hosted demo link
+- [x] Printable PDF checklist (fpdf2)
+- [ ] Hosted demo link (Streamlit Community Cloud)
 
 ## Development Standards
 

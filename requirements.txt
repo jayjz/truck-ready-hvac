@@ -1,0 +1,5 @@
+# Runtime deps for Streamlit Community Cloud and simple pip installs.
+# Keep in sync with [project.dependencies] in pyproject.toml.
+streamlit>=1.35
+pydantic>=2.7
+fpdf2>=2.8.0
