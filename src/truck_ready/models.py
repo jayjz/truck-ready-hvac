@@ -26,6 +26,14 @@ class Urgency(str, Enum):
     LOW = "low"
 
 
+class Action(str, Enum):
+    """What the technician should do with this checklist line."""
+
+    STAGE = "STAGE"
+    PICK_UP = "PICK_UP"
+    REORDER = "REORDER"
+
+
 class InventoryItem(BaseModel):
     """A single part currently on a truck or in the shop."""
 
@@ -94,7 +102,7 @@ class PartAvailability(BaseModel):
 
 
 class PartsCheckResult(BaseModel):
-    """Result of checking all required parts for a set of jobs."""
+    """Result of checking all required parts for a single job."""
 
     job_id: str
     parts: list[PartAvailability]
@@ -112,8 +120,8 @@ class ChecklistItem(BaseModel):
 
     sku: str
     name: str
-    quantity: int
-    action: Annotated[str, Field(description="STAGE | PICK_UP | REORDER")]
+    quantity: Annotated[int, Field(ge=1)]
+    action: Action
     urgency: Urgency
     related_jobs: list[str] = Field(default_factory=list)
     notes: str = ""
