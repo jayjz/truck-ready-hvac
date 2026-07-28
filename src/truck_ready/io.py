@@ -145,9 +145,7 @@ def _parse_required_parts(raw: str) -> list[RequiredPart]:
             continue
         tokens = [t.strip() for t in chunk.split(":")]
         if len(tokens) < 2:
-            raise ValueError(
-                f"Part entry '{chunk}' must be SKU:qty or SKU:qty:urgency"
-            )
+            raise ValueError(f"Part entry '{chunk}' must be SKU:qty or SKU:qty:urgency")
         sku, qty_str, *rest = tokens
         try:
             qty = int(qty_str)
