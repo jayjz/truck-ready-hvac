@@ -6,18 +6,18 @@ All public models are fully typed and validated.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-class Urgency(str, Enum):
+class Urgency(StrEnum):
     """How critical a missing part is to completing the job today."""
 
     CRITICAL = "critical"
@@ -26,7 +26,7 @@ class Urgency(str, Enum):
     LOW = "low"
 
 
-class Action(str, Enum):
+class Action(StrEnum):
     """What the technician should do with this checklist line."""
 
     STAGE = "STAGE"
