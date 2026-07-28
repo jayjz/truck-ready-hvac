@@ -25,7 +25,8 @@ source .venv/bin/activate          # Linux/macOS
 
 pip install -e ".[dev]"
 
-# Run tests
+# Quality checks
+ruff check src tests
 pytest -v
 
 # Launch the demo UI
@@ -37,18 +38,24 @@ streamlit run app.py
 - Takes a list of jobs and current truck inventory
 - Calculates which required parts are available vs missing
 - Produces a prioritized pre-departure checklist
+  - Stages what is already on the truck (including partial stock)
+  - Flags shortfalls to pick up
+  - Suggests reorders for low stock or untracked SKUs
 - Exports a self-contained offline JSON payload the tech can use in the field
 
 ## Status
 
-**v0.1.0 — Core loop live**
+**v0.1.1 — Core loop corrected**
 
 - [x] Project scaffolding + strict tooling (ruff, mypy, pytest, src layout)
-- [x] Pydantic domain models
+- [x] Pydantic domain models + Action enum
 - [x] Pure parts availability + checklist engine
+- [x] Partial staging (stage what you have + pick up the rest)
+- [x] Reorder for completely missing SKUs
 - [x] Realistic HVAC seed data
-- [x] Offline JSON export
+- [x] Offline JSON export + tests
 - [x] Minimal Streamlit pilot UI
+- [x] GitHub Actions CI (ruff + pytest)
 - [ ] CSV upload path for real contractor data
 - [ ] Printable PDF checklist
 - [ ] Hosted demo link
