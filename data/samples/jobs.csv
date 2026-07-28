@@ -1,0 +1,5 @@
+job_id,job_type,customer_name,scheduled_date,assigned_tech,notes,required_parts
+JOB-1001,Emergency_Repair,Martinez Residence,2026-07-28,TCH-01,No-cool call older 3-ton unit,
+JOB-1002,HVAC_Maintenance,Chen Residence,2026-07-28,TCH-02,Seasonal tune-up + filter change,
+JOB-1003,Heat_Pump_Install,Patel Residence,2026-07-28,TCH-01,3-ton heat pump change-out,LINESET-50:1:critical;PAD-CONC:1:high;WHIP-6/3:1:high;FILTER-20x25:2:medium
+JOB-1004,Emergency_Repair,Sullivan Residence,2026-07-28,TCH-03,Intermittent cooling possible capacitor,

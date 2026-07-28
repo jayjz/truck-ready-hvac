@@ -2,6 +2,8 @@
 
 Minimal, focused UI around the single closed loop:
 jobs + stock → pre-departure checklist → offline export.
+
+Supports demo data and real contractor CSV uploads.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ import streamlit as st
 
 from truck_ready.core import build_pre_departure_checklist
 from truck_ready.export import checklist_to_json_string
+from truck_ready.io import CSVLoadError, load_inventory_csv, load_jobs_csv
 from truck_ready.seed import demo_inventory, demo_jobs
 
 st.set_page_config(
@@ -20,11 +23,48 @@ st.set_page_config(
 )
 
 st.title("Truck Ready HVAC")
-st.caption("Pre-departure parts checklist — stage the right parts, finish more jobs first visit.")
+st.caption(
+    "Pre-departure parts checklist — stage the right parts, "
+    "finish more jobs first visit."
+)
 
 with st.sidebar:
-    st.header("Demo Controls")
-    use_demo = st.button("Load Demo Company", type="primary", use_container_width=True)
+    st.header("Data Source")
+    source = st.radio(
+        "Load from",
+        options=["Demo company", "Upload CSVs"],
+        index=0,
+    )
+
+    jobs = None
+    inventory = None
+    load_error: str | None = None
+
+    if source == "Demo company":
+        if st.button("Load Demo Company", type="primary", use_container_width=True):
+            st.session_state.pop("checklist", None)
+        jobs = demo_jobs()
+        inventory = demo_inventory()
+    else:
+        inv_file = st.file_uploader(
+            "Inventory CSV",
+            type=["csv"],
+            help="See docs/CSV_FORMAT.md for required columns.",
+        )
+        jobs_file = st.file_uploader(
+            "Jobs CSV",
+            type=["csv"],
+            help="job_type is enough to start; required_parts is optional.",
+        )
+        if inv_file is not None and jobs_file is not None:
+            try:
+                inventory = load_inventory_csv(inv_file)
+                jobs = load_jobs_csv(jobs_file)
+            except CSVLoadError as exc:
+                load_error = str(exc)
+        elif inv_file is not None or jobs_file is not None:
+            st.info("Upload both inventory.csv and jobs.csv to generate a checklist.")
+
     st.divider()
     st.markdown(
         """
@@ -35,14 +75,30 @@ with st.sidebar:
         4. Offline export
         """
     )
+    st.caption("CSV column reference: docs/CSV_FORMAT.md")
 
-if use_demo or "checklist" not in st.session_state:
+if load_error:
+    st.error(f"Could not load CSVs: {load_error}")
+    st.stop()
+
+if jobs is None or inventory is None:
+    # First paint or incomplete upload — fall back to demo so the UI is never empty.
     jobs = demo_jobs()
     inventory = demo_inventory()
-    checklist = build_pre_departure_checklist(jobs=jobs, inventory=inventory, tech_id="TCH-01")
+
+if (
+    "checklist" not in st.session_state
+    or st.session_state.get("_jobs_id") != id(jobs)
+    or st.session_state.get("_inv_id") != id(inventory)
+):
+    checklist = build_pre_departure_checklist(
+        jobs=jobs,
+        inventory=inventory,
+        tech_id="TCH-01",
+    )
     st.session_state["checklist"] = checklist
-    st.session_state["jobs"] = jobs
-    st.session_state["inventory"] = inventory
+    st.session_state["_jobs_id"] = id(jobs)
+    st.session_state["_inv_id"] = id(inventory)
 
 checklist = st.session_state["checklist"]
 
@@ -65,9 +121,9 @@ with tab_stage:
     else:
         for item in checklist.items_to_stage:
             st.markdown(
-                f"**{item.sku}** — {item.name}  
-"
-                f"Qty: `{item.quantity}` | Urgency: `{item.urgency.value}` | Jobs: {', '.join(item.related_jobs)}"
+                f"**{item.sku}** — {item.name}  \n"
+                f"Qty: `{item.quantity}` | Urgency: `{item.urgency.value}` | "
+                f"Jobs: {', '.join(item.related_jobs)}"
             )
 
 with tab_missing:
@@ -76,9 +132,9 @@ with tab_missing:
     else:
         for item in checklist.items_missing:
             st.error(
-                f"**{item.sku}** — {item.name}  
-"
-                f"Need: `{item.quantity}` more | {item.notes} | Jobs: {', '.join(item.related_jobs)}"
+                f"**{item.sku}** — {item.name}  \n"
+                f"Need: `{item.quantity}` more | {item.notes} | "
+                f"Jobs: {', '.join(item.related_jobs)}"
             )
 
 with tab_reorder:
@@ -87,13 +143,14 @@ with tab_reorder:
     else:
         for item in checklist.reorder_suggestions:
             st.warning(
-                f"**{item.sku}** — {item.name}  
-"
+                f"**{item.sku}** — {item.name}  \n"
                 f"Suggested qty: `{item.quantity}` | {item.notes}"
             )
 
 with tab_export:
-    st.markdown("Download a self-contained JSON checklist the tech can open offline.")
+    st.markdown(
+        "Download a self-contained JSON checklist the tech can open offline."
+    )
     json_payload = checklist_to_json_string(checklist)
     st.download_button(
         label="Download Offline Checklist (JSON)",

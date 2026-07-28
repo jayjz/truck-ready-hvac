@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "truck-ready-hvac"
-version = "0.1.0"
+version = "0.1.1"
 description = "Pre-departure parts checklist for HVAC technicians. Stage the right parts, export offline, finish more jobs first visit."
 readme = "README.md"
 requires-python = ">=3.11"

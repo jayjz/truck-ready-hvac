@@ -6,6 +6,7 @@ from truck_ready.core import (
     check_job_parts,
     default_parts_for_job_type,
 )
+from truck_ready.io import CSVLoadError, load_inventory_csv, load_jobs_csv
 from truck_ready.models import (
     Action,
     ChecklistItem,
@@ -20,6 +21,7 @@ from truck_ready.models import (
 
 __all__ = [
     "Action",
+    "CSVLoadError",
     "ChecklistItem",
     "InventoryItem",
     "Job",
@@ -32,6 +34,8 @@ __all__ = [
     "check_all_jobs",
     "check_job_parts",
     "default_parts_for_job_type",
+    "load_inventory_csv",
+    "load_jobs_csv",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

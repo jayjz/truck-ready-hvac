@@ -27,11 +27,21 @@ pip install -e ".[dev]"
 
 # Quality checks
 ruff check src tests
+ruff format --check src tests
 pytest -v
 
-# Launch the demo UI
+# Launch the demo / pilot UI
 streamlit run app.py
 ```
+
+## Pilot path (real contractor data)
+
+1. Prepare two CSVs following [docs/CSV_FORMAT.md](docs/CSV_FORMAT.md).
+2. Sample files live in `data/samples/`.
+3. In the Streamlit UI choose **Upload CSVs** and select your inventory + jobs files.
+4. Review the checklist, then download the offline JSON for the tech.
+
+The core engine never sees the CSV layer — loaders produce domain models, then the pure checklist builder runs unchanged.
 
 ## What it does
 
@@ -45,7 +55,7 @@ streamlit run app.py
 
 ## Status
 
-**v0.1.1 — Core loop corrected**
+**v0.1.1 — CSV pilot path**
 
 - [x] Project scaffolding + strict tooling (ruff, mypy, pytest, src layout)
 - [x] Pydantic domain models + Action enum
@@ -56,7 +66,8 @@ streamlit run app.py
 - [x] Offline JSON export + tests
 - [x] Minimal Streamlit pilot UI
 - [x] GitHub Actions CI (ruff + pytest)
-- [ ] CSV upload path for real contractor data
+- [x] CSV loaders + sample data for real contractor pilots
+- [x] Agent context files (`AGENTS.md`, `docs/`)
 - [ ] Printable PDF checklist
 - [ ] Hosted demo link
 
@@ -69,6 +80,7 @@ streamlit run app.py
 - Pytest with importlib mode
 - No untyped public functions
 - Small, focused modules
+- Core remains pure (see `AGENTS.md`)
 
 ## License
 

@@ -1,0 +1,11 @@
+sku,name,quantity,reorder_point,unit_cost,category
+CAP-45-5,Dual Run Capacitor 45/5 MFD,6,4,12.50,electrical
+CAP-35-5,Dual Run Capacitor 35/5 MFD,4,3,11.75,electrical
+CONT-30A,Contactor 30A 1-Pole,5,3,18.00,electrical
+FILTER-20x25,Air Filter 20x25x1 MERV 8,18,10,4.25,filtration
+FILTER-16x25,Air Filter 16x25x1 MERV 8,8,6,3.90,filtration
+MTR-0.5HP,Condenser Fan Motor 1/2 HP,1,1,145.00,motors
+LINESET-50,Line Set 50 ft,0,1,185.00,install
+PAD-CONC,Concrete Pad,2,1,42.00,install
+WHIP-6/3,Disconnect Whip 6/3,1,1,28.00,electrical
+HARDSTART,Hard Start Kit,4,2,22.00,electrical
