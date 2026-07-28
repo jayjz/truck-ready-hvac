@@ -101,7 +101,12 @@ def test_partial_stock_stages_available_and_flags_shortfall() -> None:
             customer_name="A",
             scheduled_date="2026-07-28",
             required_parts=[
-                RequiredPart(sku="CAP-45-5", name="Cap", quantity_needed=2, urgency=Urgency.HIGH),
+                RequiredPart(
+                    sku="CAP-45-5",
+                    name="Cap",
+                    quantity_needed=2,
+                    urgency=Urgency.HIGH,
+                ),
             ],
         ),
         Job(
@@ -110,7 +115,12 @@ def test_partial_stock_stages_available_and_flags_shortfall() -> None:
             customer_name="B",
             scheduled_date="2026-07-28",
             required_parts=[
-                RequiredPart(sku="CAP-45-5", name="Cap", quantity_needed=1, urgency=Urgency.MEDIUM),
+                RequiredPart(
+                    sku="CAP-45-5",
+                    name="Cap",
+                    quantity_needed=1,
+                    urgency=Urgency.MEDIUM,
+                ),
             ],
         ),
     ]
@@ -148,11 +158,16 @@ def test_absent_sku_generates_reorder() -> None:
             ],
         ),
     ]
-    # Empty inventory — SKU completely absent
     checklist = build_pre_departure_checklist(jobs=jobs, inventory=[])
 
-    assert any(i.sku == "LINESET-50" and i.action == Action.PICK_UP for i in checklist.items_missing)
-    assert any(i.sku == "LINESET-50" and i.action == Action.REORDER for i in checklist.reorder_suggestions)
+    assert any(
+        i.sku == "LINESET-50" and i.action == Action.PICK_UP
+        for i in checklist.items_missing
+    )
+    assert any(
+        i.sku == "LINESET-50" and i.action == Action.REORDER
+        for i in checklist.reorder_suggestions
+    )
     assert not any(i.sku == "LINESET-50" for i in checklist.items_to_stage)
 
 
