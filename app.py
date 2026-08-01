@@ -529,7 +529,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _urgency_badge(urgency: Urgency) -> str:
@@ -593,12 +592,14 @@ with st.sidebar:
     jobs = None
     inventory = None
     load_error: str | None = None
+    inv_warnings: list[str] = []
+    job_warnings: list[str] = []
 
     if source == "Demo Company":
         if st.button("Reload Demo Data", use_container_width=True):
             st.session_state.pop("checklist", None)
-            st.session_state.pop("_jobs_id", None)
-            st.session_state.pop("_inv_id", None)
+            st.session_state.pop("_jobs_hash", None)
+            st.session_state.pop("_inv_hash", None)
         jobs = demo_jobs()
         inventory = demo_inventory()
     else:
@@ -612,8 +613,8 @@ with st.sidebar:
 
         if inv_file is not None and jobs_file is not None:
             try:
-                inventory = load_inventory_csv(inv_file)
-                jobs = load_jobs_csv(jobs_file)
+                inventory, inv_warnings = load_inventory_csv(inv_file)
+                jobs, job_warnings = load_jobs_csv(jobs_file)
             except CSVLoadError as exc:
                 load_error = str(exc)
         elif inv_file is not None or jobs_file is not None:
@@ -708,12 +709,17 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-
 # ── Error gate ──────────────────────────────────────────────────────────────────
 if load_error:
     st.error(f"CSV load error: {load_error}")
     st.stop()
 
+# ── Warning gate ────────────────────────────────────────────────────────────────
+all_warnings = inv_warnings + job_warnings
+if all_warnings:
+    with st.expander("⚠️ Some rows were skipped due to formatting errors", expanded=True):
+        for w in all_warnings:
+            st.warning(w)
 
 # ── Page header ─────────────────────────────────────────────────────────────────
 generated_ts = checklist.generated_at.strftime("%Y-%m-%d %H:%M UTC")

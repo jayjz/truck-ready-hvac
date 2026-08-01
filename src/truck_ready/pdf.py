@@ -14,7 +14,7 @@ from truck_ready.models import ChecklistItem, PreDepartureChecklist
 
 def _sanitize(text: str) -> str:
     """Sanitize text to prevent FPDF unicode encoding crashes.
-    
+
     fpdf2 standard fonts only support latin-1. This replaces common smart
     punctuation and falls back to '?' for unsupported characters (like emojis)
     so the app never crashes from CSV input or backend data.
@@ -22,9 +22,9 @@ def _sanitize(text: str) -> str:
     if not text:
         return ""
     # Replace common typographical characters with ASCII equivalents
-    text = text.replace("—", "-").replace("–", "-")
-    text = text.replace("“", '"').replace("”", '"')
-    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("—", "-").replace("–", "-")  # noqa: RUF001
+    text = text.replace("“", '"').replace("”", '"')  # noqa: RUF001
+    text = text.replace("‘", "'").replace("’", "'")  # noqa: RUF001
     text = text.replace("…", "...")
     # Catch-all for any remaining non-latin-1 characters
     return text.encode("latin-1", "replace").decode("latin-1")
@@ -147,7 +147,9 @@ def checklist_to_pdf_bytes(checklist: PreDepartureChecklist) -> bytes:
     pdf.cell(
         0,
         5,
-        _sanitize(f"Generated: {generated}     Tech: {tech}     Readiness: {score_pct}"),
+        _sanitize(
+            f"Generated: {generated}     Tech: {tech}     Readiness: {score_pct}"
+        ),
         new_x="LMARGIN",
         new_y="NEXT",
     )
