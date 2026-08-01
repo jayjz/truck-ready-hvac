@@ -12,6 +12,24 @@ from fpdf import FPDF
 from truck_ready.models import ChecklistItem, PreDepartureChecklist
 
 
+def _sanitize(text: str) -> str:
+    """Sanitize text to prevent FPDF unicode encoding crashes.
+    
+    fpdf2 standard fonts only support latin-1. This replaces common smart
+    punctuation and falls back to '?' for unsupported characters (like emojis)
+    so the app never crashes from CSV input or backend data.
+    """
+    if not text:
+        return ""
+    # Replace common typographical characters with ASCII equivalents
+    text = text.replace("—", "-").replace("–", "-")
+    text = text.replace("“", '"').replace("”", '"')
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("…", "...")
+    # Catch-all for any remaining non-latin-1 characters
+    return text.encode("latin-1", "replace").decode("latin-1")
+
+
 class ChecklistPDF(FPDF):
     """Minimal branded PDF with header + page numbers."""
 
@@ -75,12 +93,14 @@ def _item_row(pdf: FPDF, item: ChecklistItem) -> None:
 
     pdf.set_xy(x + 5.5, start_y)
     pdf.set_font("Helvetica", "B", 9)
-    pdf.cell(38, 5, item.sku)
+    # Sanitize dynamic SKU
+    pdf.cell(38, 5, _sanitize(item.sku))
 
     pdf.set_font("Helvetica", size=9)
     name_width = 95
     truncated = item.name[:55] + ("..." if len(item.name) > 55 else "")
-    pdf.cell(name_width, 5, truncated)
+    # Sanitize dynamic name
+    pdf.cell(name_width, 5, _sanitize(truncated))
 
     pdf.set_font("Helvetica", "B", 9)
     pdf.cell(18, 5, f"Qty {item.quantity}")
@@ -100,7 +120,8 @@ def _item_row(pdf: FPDF, item: ChecklistItem) -> None:
     pdf.set_font("Helvetica", size=7.5)
     pdf.set_text_color(90, 90, 90)
     pdf.set_x(x + 5.5)
-    pdf.multi_cell(0, 3.8, extra)
+    # Sanitize the full secondary string line
+    pdf.multi_cell(0, 3.8, _sanitize(extra))
     pdf.set_text_color(0, 0, 0)
     pdf.ln(1.2)
 
@@ -126,16 +147,16 @@ def checklist_to_pdf_bytes(checklist: PreDepartureChecklist) -> bytes:
     pdf.cell(
         0,
         5,
-        f"Generated: {generated}     Tech: {tech}     Readiness: {score_pct}",
+        _sanitize(f"Generated: {generated}     Tech: {tech}     Readiness: {score_pct}"),
         new_x="LMARGIN",
         new_y="NEXT",
     )
-    pdf.cell(0, 5, f"Jobs covered: {jobs}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5, _sanitize(f"Jobs covered: {jobs}"), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1.5)
 
     # Summary
     pdf.set_font("Helvetica", "I", 9)
-    pdf.multi_cell(0, 4.5, checklist.summary)
+    pdf.multi_cell(0, 4.5, _sanitize(checklist.summary))
     pdf.ln(2.5)
 
     has_content = False

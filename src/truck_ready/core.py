@@ -23,10 +23,23 @@ from truck_ready.models import (
 
 def build_stock_index(inventory: list[InventoryItem]) -> dict[str, InventoryItem]:
     """Index inventory by normalized SKU for O(1) lookups.
-
-    If duplicate SKUs exist, the last entry wins. Callers should
-    deduplicate inventory before calling if that matters.
+    
+    Aggregates quantities if duplicate SKUs exist in the source data 
+    to prevent silent stock loss.
     """
+    index: dict[str, InventoryItem] = {}
+    
+    for item in inventory:
+        if item.sku in index:
+            # Create a copy with the summed quantity to avoid mutating the original
+            existing = index[item.sku]
+            index[item.sku] = existing.model_copy(
+                update={"quantity": existing.quantity + item.quantity}
+            )
+        else:
+            index[item.sku] = item
+            
+    return index
     return {item.sku: item for item in inventory}
 
 

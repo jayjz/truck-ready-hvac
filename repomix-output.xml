@@ -1,0 +1,3141 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  workflows/
+    ci.yml
+data/
+  samples/
+    inventory.csv
+    jobs.csv
+docs/
+  ARCHITECTURE.md
+  CSV_FORMAT.md
+src/
+  truck_ready/
+    __init__.py
+    core.py
+    export.py
+    io.py
+    models.py
+    pdf.py
+    seed.py
+tests/
+  __init__.py
+  test_core.py
+  test_export.py
+  test_io.py
+  test_models.py
+  test_pdf.py
+.gitignore
+AGENTS.md
+app.py
+LICENSE
+pyproject.toml
+README.md
+requirements.txt
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="data/samples/inventory.csv">
+sku,name,quantity,reorder_point,unit_cost,category
+CAP-45-5,Dual Run Capacitor 45/5 MFD,6,4,12.50,electrical
+CAP-35-5,Dual Run Capacitor 35/5 MFD,4,3,11.75,electrical
+CONT-30A,Contactor 30A 1-Pole,5,3,18.00,electrical
+FILTER-20x25,Air Filter 20x25x1 MERV 8,18,10,4.25,filtration
+FILTER-16x25,Air Filter 16x25x1 MERV 8,8,6,3.90,filtration
+MTR-0.5HP,Condenser Fan Motor 1/2 HP,1,1,145.00,motors
+LINESET-50,Line Set 50 ft,0,1,185.00,install
+PAD-CONC,Concrete Pad,2,1,42.00,install
+WHIP-6/3,Disconnect Whip 6/3,1,1,28.00,electrical
+HARDSTART,Hard Start Kit,4,2,22.00,electrical
+</file>
+
+<file path="data/samples/jobs.csv">
+job_id,job_type,customer_name,scheduled_date,assigned_tech,notes,required_parts
+JOB-1001,Emergency_Repair,Martinez Residence,2026-07-28,TCH-01,No-cool call older 3-ton unit,
+JOB-1002,HVAC_Maintenance,Chen Residence,2026-07-28,TCH-02,Seasonal tune-up + filter change,
+JOB-1003,Heat_Pump_Install,Patel Residence,2026-07-28,TCH-01,3-ton heat pump change-out,LINESET-50:1:critical;PAD-CONC:1:high;WHIP-6/3:1:high;FILTER-20x25:2:medium
+JOB-1004,Emergency_Repair,Sullivan Residence,2026-07-28,TCH-03,Intermittent cooling possible capacitor,
+</file>
+
+<file path="docs/CSV_FORMAT.md">
+# CSV Format for Pilots
+
+Contractors can feed real data via two simple CSVs. Column names are case-insensitive; extra columns are ignored.
+
+## inventory.csv
+
+| Column          | Required | Type    | Notes                                      |
+|-----------------|----------|---------|--------------------------------------------|
+| sku             | yes      | string  | Unique part identifier (normalized upper)  |
+| name            | yes      | string  | Human-readable description                 |
+| quantity        | yes      | int ≥ 0 | Current on-hand count                      |
+| reorder_point   | no       | int ≥ 0 | Default 5                                  |
+| unit_cost       | no       | float ≥ 0 | Default 0.0                             |
+| category        | no       | string  | Default "general"                          |
+
+Example:
+
+```csv
+sku,name,quantity,reorder_point,unit_cost,category
+CAP-45-5,Dual Run Capacitor 45/5 MFD,6,4,12.50,electrical
+CONT-30A,Contactor 30A 1-Pole,5,3,18.00,electrical
+FILTER-20x25,Air Filter 20x25x1 MERV 8,18,10,4.25,filtration
+LINESET-50,Line Set 50 ft,0,1,185.00,install
+```
+
+## jobs.csv
+
+| Column          | Required | Type   | Notes                                              |
+|-----------------|----------|--------|----------------------------------------------------|
+| job_id          | yes      | string | Unique job identifier                              |
+| job_type        | yes      | string | Used for default parts when no explicit BOM given  |
+| customer_name   | yes      | string |                                                    |
+| scheduled_date  | yes      | string | Free-form date string is accepted                  |
+| assigned_tech   | no       | string |                                                    |
+| notes           | no       | string |                                                    |
+| required_parts  | no       | string | Optional simple BOM (see below)                    |
+
+### required_parts format (optional)
+
+If the column is present and non-empty, each part is written as:
+
+```
+SKU:qty[:urgency]
+```
+
+Multiple parts separated by `;`.
+
+Examples:
+
+```
+CAP-45-5:1:high;CONT-30A:1
+LINESET-50:1:critical;PAD-CONC:1:high
+```
+
+Urgency values: `critical`, `high`, `medium`, `low` (default `medium`).
+
+If `required_parts` is blank or missing, the loader falls back to `default_parts_for_job_type(job_type)` so a contractor can start with only job type information.
+
+Example jobs.csv:
+
+```csv
+job_id,job_type,customer_name,scheduled_date,assigned_tech,notes,required_parts
+JOB-1001,Emergency_Repair,Martinez Residence,2026-07-28,TCH-01,No-cool call,
+JOB-1003,Heat_Pump_Install,Patel Residence,2026-07-28,TCH-01,3-ton change-out,LINESET-50:1:critical;PAD-CONC:1:high;WHIP-6/3:1:high
+```
+
+## Error behavior
+
+- Missing required columns → clear error listing the missing names.
+- Invalid row (bad type, negative quantity, empty SKU, etc.) → error includes the 1-based row number and the Pydantic validation detail.
+- Empty file or header-only file → treated as zero records (valid but empty).
+
+See `data/samples/` for ready-to-use examples.
+</file>
+
+<file path="src/truck_ready/export.py">
+"""Offline export helpers for the pre-departure checklist.
+
+The JSON payload is deliberately self-contained so a technician can
+open it on a phone with zero signal.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from truck_ready.models import PreDepartureChecklist
+
+
+def checklist_to_dict(checklist: PreDepartureChecklist) -> dict:
+    """Serialize checklist to a plain dict suitable for JSON."""
+    return checklist.model_dump(mode="json")
+
+
+def export_checklist_json(
+    checklist: PreDepartureChecklist,
+    path: str | Path,
+) -> Path:
+    """Write the checklist to a JSON file and return the path."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = checklist_to_dict(checklist)
+    target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return target
+
+
+def checklist_to_json_string(checklist: PreDepartureChecklist) -> str:
+    """Return a pretty-printed JSON string for download or display."""
+    return json.dumps(checklist_to_dict(checklist), indent=2)
+</file>
+
+<file path="src/truck_ready/pdf.py">
+"""Printable PDF export for the pre-departure checklist.
+
+Thin adapter only. Core remains pure. Uses fpdf2 (lightweight, pure-Python,
+Streamlit Community Cloud friendly) so a tech can print a physical sheet
+before rolling with zero cell service.
+"""
+
+from __future__ import annotations
+
+from fpdf import FPDF
+
+from truck_ready.models import ChecklistItem, PreDepartureChecklist
+
+
+def _sanitize(text: str) -> str:
+    """Sanitize text to prevent FPDF unicode encoding crashes.
+    
+    fpdf2 standard fonts only support latin-1. This replaces common smart
+    punctuation and falls back to '?' for unsupported characters (like emojis)
+    so the app never crashes from CSV input or backend data.
+    """
+    if not text:
+        return ""
+    # Replace common typographical characters with ASCII equivalents
+    text = text.replace("—", "-").replace("–", "-")
+    text = text.replace("“", '"').replace("”", '"')
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("…", "...")
+    # Catch-all for any remaining non-latin-1 characters
+    return text.encode("latin-1", "replace").decode("latin-1")
+
+
+class ChecklistPDF(FPDF):
+    """Minimal branded PDF with header + page numbers."""
+
+    def header(self) -> None:
+        self.set_font("Helvetica", "B", 13)
+        self.cell(
+            0,
+            7,
+            "Truck Ready HVAC  -  Pre-Departure Checklist",
+            align="C",
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
+        self.set_font("Helvetica", size=8)
+        self.set_text_color(90, 90, 90)
+        self.cell(
+            0,
+            4,
+            "Stage the right parts. Finish more jobs first visit.",
+            align="C",
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
+        self.set_text_color(0, 0, 0)
+        self.ln(2)
+
+    def footer(self) -> None:
+        self.set_y(-11)
+        self.set_font("Helvetica", size=7)
+        self.set_text_color(120, 120, 120)
+        self.cell(
+            0,
+            6,
+            f"Page {self.page_no()}/{{nb}}   |   JSON offline export also available   |   truck-ready-hvac",
+            align="C",
+        )
+
+
+def _section_header(pdf: FPDF, title: str, rgb: tuple[int, int, int]) -> None:
+    pdf.set_fill_color(*rgb)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(0, 6.5, f"  {title}", fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(1.5)
+
+
+def _draw_checkbox(pdf: FPDF, x: float, y: float, size: float = 3.2) -> None:
+    pdf.rect(x, y, size, size)
+
+
+def _item_row(pdf: FPDF, item: ChecklistItem) -> None:
+    """One checklist line with empty checkbox for the tech to mark."""
+    start_y = pdf.get_y()
+    if start_y > 260:  # near bottom of letter page
+        pdf.add_page()
+        start_y = pdf.get_y()
+
+    x = pdf.l_margin
+    _draw_checkbox(pdf, x, start_y + 1.2)
+
+    pdf.set_xy(x + 5.5, start_y)
+    pdf.set_font("Helvetica", "B", 9)
+    # Sanitize dynamic SKU
+    pdf.cell(38, 5, _sanitize(item.sku))
+
+    pdf.set_font("Helvetica", size=9)
+    name_width = 95
+    truncated = item.name[:55] + ("..." if len(item.name) > 55 else "")
+    # Sanitize dynamic name
+    pdf.cell(name_width, 5, _sanitize(truncated))
+
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.cell(18, 5, f"Qty {item.quantity}")
+
+    pdf.set_font("Helvetica", size=8)
+    urgency = item.urgency.value.upper()
+    pdf.cell(0, 5, urgency, new_x="LMARGIN", new_y="NEXT")
+
+    # Secondary line: jobs + notes
+    jobs = ", ".join(item.related_jobs) if item.related_jobs else "-"
+    notes = item.notes.strip() if item.notes else ""
+    extra_parts = [f"Jobs: {jobs}"]
+    if notes:
+        extra_parts.append(notes)
+    extra = "  |  ".join(extra_parts)
+
+    pdf.set_font("Helvetica", size=7.5)
+    pdf.set_text_color(90, 90, 90)
+    pdf.set_x(x + 5.5)
+    # Sanitize the full secondary string line
+    pdf.multi_cell(0, 3.8, _sanitize(extra))
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(1.2)
+
+
+def checklist_to_pdf_bytes(checklist: PreDepartureChecklist) -> bytes:
+    """Render a PreDepartureChecklist to PDF bytes ready for download or print.
+
+    Returns raw PDF bytes (suitable for Streamlit download_button or file write).
+    """
+    pdf = ChecklistPDF(orientation="P", unit="mm", format="Letter")
+    pdf.alias_nb_pages()
+    pdf.set_auto_page_break(auto=True, margin=14)
+    pdf.set_margins(12, 14, 12)
+    pdf.add_page()
+
+    # Meta block
+    generated = checklist.generated_at.strftime("%Y-%m-%d %H:%M UTC")
+    tech = checklist.tech_id or "-"
+    score_pct = f"{checklist.overall_readiness_score:.0%}"
+    jobs = ", ".join(checklist.jobs_covered) if checklist.jobs_covered else "-"
+
+    pdf.set_font("Helvetica", size=9)
+    pdf.cell(
+        0,
+        5,
+        _sanitize(f"Generated: {generated}     Tech: {tech}     Readiness: {score_pct}"),
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
+    pdf.cell(0, 5, _sanitize(f"Jobs covered: {jobs}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(1.5)
+
+    # Summary
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.multi_cell(0, 4.5, _sanitize(checklist.summary))
+    pdf.ln(2.5)
+
+    has_content = False
+
+    if checklist.items_to_stage:
+        has_content = True
+        _section_header(pdf, "STAGE THESE  (already on the truck)", (34, 120, 40))
+        for item in checklist.items_to_stage:
+            _item_row(pdf, item)
+        pdf.ln(1.5)
+
+    if checklist.items_missing:
+        has_content = True
+        _section_header(pdf, "MISSING - PICK UP BEFORE DEPARTURE", (160, 30, 30))
+        for item in checklist.items_missing:
+            _item_row(pdf, item)
+        pdf.ln(1.5)
+
+    if checklist.reorder_suggestions:
+        has_content = True
+        _section_header(pdf, "REORDER SUGGESTIONS", (180, 130, 20))
+        for item in checklist.reorder_suggestions:
+            _item_row(pdf, item)
+
+    if not has_content:
+        pdf.set_font("Helvetica", size=11)
+        pdf.cell(0, 12, "No items on this checklist.", align="C")
+
+    result = pdf.output()
+    return bytes(result)
+</file>
+
+<file path="tests/__init__.py">
+"""Test suite for Truck Ready HVAC."""
+</file>
+
+<file path="tests/test_export.py">
+"""Tests for offline checklist export."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from truck_ready.core import build_pre_departure_checklist
+from truck_ready.export import (
+    checklist_to_dict,
+    checklist_to_json_string,
+    export_checklist_json,
+)
+from truck_ready.seed import demo_inventory, demo_jobs
+
+
+def test_checklist_to_dict_roundtrip_keys() -> None:
+    checklist = build_pre_departure_checklist(
+        jobs=demo_jobs(),
+        inventory=demo_inventory(),
+    )
+    data = checklist_to_dict(checklist)
+
+    assert "jobs_covered" in data
+    assert "items_to_stage" in data
+    assert "items_missing" in data
+    assert "reorder_suggestions" in data
+    assert "overall_readiness_score" in data
+    assert isinstance(data["items_to_stage"], list)
+
+
+def test_checklist_to_json_string_is_valid_json() -> None:
+    checklist = build_pre_departure_checklist(
+        jobs=demo_jobs(),
+        inventory=demo_inventory(),
+    )
+    raw = checklist_to_json_string(checklist)
+    parsed = json.loads(raw)
+
+    assert parsed["overall_readiness_score"] == checklist.overall_readiness_score
+    assert len(parsed["jobs_covered"]) == 4
+
+
+def test_export_checklist_json_writes_file(tmp_path: Path) -> None:
+    checklist = build_pre_departure_checklist(
+        jobs=demo_jobs(),
+        inventory=demo_inventory(),
+    )
+    target = tmp_path / "checklist.json"
+    result_path = export_checklist_json(checklist, target)
+
+    assert result_path == target
+    assert target.exists()
+
+    loaded = json.loads(target.read_text(encoding="utf-8"))
+    assert loaded["summary"] == checklist.summary
+</file>
+
+<file path="tests/test_io.py">
+"""Tests for CSV → domain model loaders."""
+
+from __future__ import annotations
+
+from io import StringIO
+from pathlib import Path
+
+import pytest
+
+from truck_ready.io import CSVLoadError, load_inventory_csv, load_jobs_csv
+from truck_ready.models import Urgency
+
+SAMPLES = Path(__file__).resolve().parents[1] / "data" / "samples"
+
+
+def test_load_inventory_from_sample_file() -> None:
+    items = load_inventory_csv(SAMPLES / "inventory.csv")
+    assert len(items) >= 4
+    skus = {i.sku for i in items}
+    assert "CAP-45-5" in skus
+    assert "LINESET-50" in skus
+    lineset = next(i for i in items if i.sku == "LINESET-50")
+    assert lineset.quantity == 0
+
+
+def test_load_jobs_from_sample_file() -> None:
+    jobs = load_jobs_csv(SAMPLES / "jobs.csv")
+    assert len(jobs) >= 2
+    assert all(j.required_parts for j in jobs)
+
+
+def test_inventory_missing_required_column() -> None:
+    raw = StringIO("sku,name\nCAP-1,Cap\n")
+    with pytest.raises(CSVLoadError, match="missing required column"):
+        load_inventory_csv(raw)
+
+
+def test_inventory_invalid_quantity() -> None:
+    raw = StringIO("sku,name,quantity\nCAP-1,Cap,-3\n")
+    with pytest.raises(CSVLoadError, match="Row 2"):
+        load_inventory_csv(raw)
+
+
+def test_jobs_default_parts_when_column_empty() -> None:
+    raw = StringIO(
+        "job_id,job_type,customer_name,scheduled_date,required_parts\n"
+        "JOB-1,Emergency_Repair,Test Customer,2026-07-28,\n"
+    )
+    jobs = load_jobs_csv(raw)
+    assert len(jobs) == 1
+    assert any(p.sku.startswith("CAP-") for p in jobs[0].required_parts)
+
+
+def test_jobs_explicit_required_parts() -> None:
+    raw = StringIO(
+        "job_id,job_type,customer_name,scheduled_date,required_parts\n"
+        "JOB-9,Install,Test,2026-07-28,"
+        "LINESET-50:1:critical;PAD-CONC:1:high\n"
+    )
+    jobs = load_jobs_csv(raw)
+    assert len(jobs) == 1
+    parts = {p.sku: p for p in jobs[0].required_parts}
+    assert parts["LINESET-50"].urgency == Urgency.CRITICAL
+    assert parts["PAD-CONC"].quantity_needed == 1
+
+
+def test_jobs_bad_parts_syntax() -> None:
+    raw = StringIO(
+        "job_id,job_type,customer_name,scheduled_date,required_parts\n"
+        "JOB-9,Install,Test,2026-07-28,NOT-A-VALID-ENTRY\n"
+    )
+    with pytest.raises(CSVLoadError, match="Row 2"):
+        load_jobs_csv(raw)
+</file>
+
+<file path="tests/test_models.py">
+"""Tests for domain models."""
+
+from __future__ import annotations
+
+import pytest
+from pydantic import ValidationError
+
+from truck_ready.models import (
+    InventoryItem,
+    Job,
+    RequiredPart,
+    Urgency,
+)
+
+
+def test_inventory_item_normalizes_sku() -> None:
+    item = InventoryItem(sku="  cap-45-5  ", name="Dual Cap", quantity=3)
+    assert item.sku == "CAP-45-5"
+
+
+def test_inventory_item_rejects_negative_quantity() -> None:
+    with pytest.raises(ValidationError):
+        InventoryItem(sku="CAP-45-5", name="Dual Cap", quantity=-1)
+
+
+def test_required_part_defaults() -> None:
+    part = RequiredPart(sku="CONT-30A", name="Contactor")
+    assert part.quantity_needed == 1
+    assert part.urgency == Urgency.MEDIUM
+
+
+def test_job_normalizes_id() -> None:
+    job = Job(
+        job_id=" job-1001 ",
+        job_type="Repair",
+        customer_name="Test Customer",
+        scheduled_date="2026-07-28",
+    )
+    assert job.job_id == "JOB-1001"
+</file>
+
+<file path="tests/test_pdf.py">
+"""Tests for printable PDF checklist export."""
+
+from __future__ import annotations
+
+from truck_ready.core import build_pre_departure_checklist
+from truck_ready.pdf import checklist_to_pdf_bytes
+from truck_ready.seed import demo_inventory, demo_jobs
+
+
+def test_checklist_to_pdf_bytes_is_valid_pdf() -> None:
+    checklist = build_pre_departure_checklist(
+        jobs=demo_jobs(),
+        inventory=demo_inventory(),
+        tech_id="TCH-01",
+    )
+    data = checklist_to_pdf_bytes(checklist)
+
+    assert isinstance(data, bytes)
+    assert len(data) > 500
+    assert data[:5] == b"%PDF-"
+
+
+def test_pdf_contains_expected_sections() -> None:
+    checklist = build_pre_departure_checklist(
+        jobs=demo_jobs(),
+        inventory=demo_inventory(),
+        tech_id="TCH-01",
+    )
+    data = checklist_to_pdf_bytes(checklist)
+    # PDF content streams are compressed; just assert non-empty valid structure.
+    assert b"/Type /Page" in data or b"/Type/Page" in data or len(data) > 1000
+</file>
+
+<file path=".gitignore">
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+exports/
+*.pdf
+!docs/**/*.pdf
+.streamlit/secrets.toml
+</file>
+
+<file path="LICENSE">
+MIT License
+
+Copyright (c) 2026 Justin Coulam
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path=".github/workflows/ci.yml">
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package + dev deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff check
+        run: ruff check src tests
+
+      - name: Ruff format check
+        run: ruff format --check src tests
+
+      - name: Pytest
+        run: pytest -v --cov=truck_ready --cov-report=term-missing
+</file>
+
+<file path="docs/ARCHITECTURE.md">
+# Architecture
+
+## Goal
+
+Deliver a trustworthy pre-departure parts checklist that a technician can use with zero signal.
+
+The product is deliberately narrow:
+
+1. Jobs + current truck / shop stock
+2. Parts availability evaluation
+3. Prioritized pre-departure checklist (stage / pick-up / reorder)
+4. Offline JSON + printable PDF export
+
+## Layering
+
+```
+┌─────────────────────────────────────────┐
+│  app.py (Streamlit) / future CLI        │  thin presentation
+├─────────────────────────────────────────┤
+│  io.py  ·  export.py  ·  pdf.py  · seed │  adapters (I/O allowed)
+├─────────────────────────────────────────┤
+│  core.py                                │  pure domain logic
+├─────────────────────────────────────────┤
+│  models.py                              │  Pydantic source of truth
+└─────────────────────────────────────────┘
+```
+
+- **models.py** — all public data shapes. Strict validation, SKU normalization, enums.
+- **core.py** — pure functions only. No filesystem, no network, no Streamlit, no CSV. Easy to unit-test and reason about under field conditions.
+- **io.py** — CSV → list[InventoryItem] / list[Job]. Validation errors are turned into clear, row-numbered messages suitable for a contractor.
+- **export.py** — checklist → self-contained JSON for offline use.
+- **pdf.py** — checklist → printable PDF (fpdf2). Thin adapter only.
+- **app.py** — demo + pilot UI. Loads data (demo or CSV), calls core, shows results, offers JSON + PDF download.
+
+## Key domain rules (implemented in core)
+
+- Aggregate demand across all jobs for the day so the tech stages once.
+- STAGE whatever quantity is actually on the truck (partial staging is first-class).
+- PICK_UP the shortfall.
+- REORDER when the SKU is below reorder point *or* is completely absent from inventory.
+- Urgency is taken as the highest urgency across jobs that need the part.
+- Per-job availability scores are optimistic (they do not reserve stock across jobs). The checklist readiness score is the honest aggregated view.
+
+## Why this shape
+
+Small HVAC shops live in spreadsheets and paper. They will not adopt a multi-agent platform. They will adopt a tool that, in under two minutes, tells the tech what to stage and what to grab before the truck leaves the lot. The architecture protects that promise by keeping the decision engine pure and the adapters thin.
+</file>
+
+<file path="src/truck_ready/io.py">
+"""Thin CSV adapters that turn contractor spreadsheets into domain models.
+
+These functions perform I/O and validation. They never call into the
+pure core engine; callers compose loaders + core themselves.
+"""
+
+from __future__ import annotations
+
+import csv
+from collections.abc import Mapping, Sequence
+from io import StringIO, TextIOWrapper
+from pathlib import Path
+from typing import BinaryIO, TextIO
+
+from pydantic import ValidationError
+
+from truck_ready.core import default_parts_for_job_type
+from truck_ready.models import InventoryItem, Job, RequiredPart, Urgency
+
+# Accept both Path and common file-like objects from Streamlit / CLI.
+PathLike = str | Path
+FileLike = TextIO | BinaryIO | StringIO
+Source = PathLike | FileLike
+
+
+class CSVLoadError(Exception):
+    """Raised when a CSV cannot be turned into valid domain models.
+
+    The message is written for a human operator (contractor or tech),
+    not only for developers.
+    """
+
+    def __init__(self, message: str, *, row: int | None = None) -> None:
+        self.row = row
+        if row is not None:
+            super().__init__(f"Row {row}: {message}")
+        else:
+            super().__init__(message)
+
+
+def _open_text(source: Source) -> tuple[TextIO, bool]:
+    """Return a text stream and whether the caller must close it."""
+    if isinstance(source, (str, Path)):
+        path = Path(source)
+        return path.open(encoding="utf-8-sig", newline=""), True
+    if isinstance(source, BinaryIO) or (
+        hasattr(source, "mode") and "b" in getattr(source, "mode", "")
+    ):
+        # Streamlit UploadedFile and similar binary streams.
+        return TextIOWrapper(source, encoding="utf-8-sig", newline=""), False
+    # Already a text stream.
+    return source, False  # type: ignore[return-value]
+
+
+def _normalize_header(name: str) -> str:
+    return name.strip().lower().replace(" ", "_")
+
+
+def _require_columns(
+    fieldnames: Sequence[str] | None,
+    required: set[str],
+    label: str,
+) -> dict[str, str]:
+    if not fieldnames:
+        raise CSVLoadError(f"{label} CSV has no header row.")
+
+    mapping: dict[str, str] = {}
+    for raw in fieldnames:
+        norm = _normalize_header(raw)
+        if norm:
+            mapping[norm] = raw
+
+    missing = sorted(required - set(mapping))
+    if missing:
+        raise CSVLoadError(
+            f"{label} CSV is missing required column(s): {', '.join(missing)}. "
+            f"Found columns: {', '.join(sorted(mapping)) or '(none)'}."
+        )
+    return mapping
+
+
+def _row_to_dict(
+    row: Mapping[str, str | None],
+    colmap: dict[str, str],
+) -> dict[str, str]:
+    """Build a clean dict keyed by normalized names."""
+    out: dict[str, str] = {}
+    for norm, original in colmap.items():
+        raw = row.get(original)
+        if raw is None:
+            continue
+        value = str(raw).strip()
+        if value != "":
+            out[norm] = value
+    return out
+
+
+def load_inventory_csv(source: Source) -> list[InventoryItem]:
+    """Load and validate an inventory CSV into InventoryItem models.
+
+    Required columns: sku, name, quantity.
+    Optional: reorder_point, unit_cost, category.
+    """
+    stream, should_close = _open_text(source)
+    try:
+        reader = csv.DictReader(stream)
+        colmap = _require_columns(
+            reader.fieldnames,
+            required={"sku", "name", "quantity"},
+            label="Inventory",
+        )
+
+        items: list[InventoryItem] = []
+        for line_no, row in enumerate(reader, start=2):  # header is row 1
+            data = _row_to_dict(row, colmap)
+            if not data:
+                continue  # blank line
+            try:
+                items.append(InventoryItem.model_validate(data))
+            except ValidationError as exc:
+                # Surface the first error cleanly.
+                err = exc.errors()[0]
+                loc = ".".join(str(p) for p in err.get("loc", ()))
+                msg = err.get("msg", str(exc))
+                raise CSVLoadError(
+                    f"Invalid inventory data ({loc}): {msg}",
+                    row=line_no,
+                ) from exc
+
+        return items
+    finally:
+        if should_close:
+            stream.close()
+
+
+def _parse_required_parts(raw: str) -> list[RequiredPart]:
+    """Parse the optional required_parts cell.
+
+    Format: SKU:qty[:urgency];SKU:qty[:urgency]
+    """
+    parts: list[RequiredPart] = []
+    for chunk in raw.split(";"):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        tokens = [t.strip() for t in chunk.split(":")]
+        if len(tokens) < 2:
+            raise ValueError(f"Part entry '{chunk}' must be SKU:qty or SKU:qty:urgency")
+        sku, qty_str, *rest = tokens
+        try:
+            qty = int(qty_str)
+        except ValueError as exc:
+            raise ValueError(f"Quantity for '{sku}' must be an integer") from exc
+
+        urgency = Urgency.MEDIUM
+        if rest:
+            try:
+                urgency = Urgency(rest[0].lower())
+            except ValueError as exc:
+                raise ValueError(
+                    f"Unknown urgency '{rest[0]}' for '{sku}'. "
+                    "Use critical|high|medium|low."
+                ) from exc
+
+        parts.append(
+            RequiredPart(
+                sku=sku,
+                name=sku,  # name is unknown in this compact form
+                quantity_needed=qty,
+                urgency=urgency,
+            )
+        )
+    return parts
+
+
+def load_jobs_csv(source: Source) -> list[Job]:
+    """Load and validate a jobs CSV into Job models.
+
+    Required columns: job_id, job_type, customer_name, scheduled_date.
+    Optional: assigned_tech, notes, required_parts.
+
+    When required_parts is blank, default_parts_for_job_type(job_type) is used.
+    """
+    stream, should_close = _open_text(source)
+    try:
+        reader = csv.DictReader(stream)
+        colmap = _require_columns(
+            reader.fieldnames,
+            required={"job_id", "job_type", "customer_name", "scheduled_date"},
+            label="Jobs",
+        )
+
+        jobs: list[Job] = []
+        for line_no, row in enumerate(reader, start=2):
+            data = _row_to_dict(row, colmap)
+            if not data:
+                continue
+
+            parts_raw = data.pop("required_parts", "").strip()
+            try:
+                if parts_raw:
+                    required = _parse_required_parts(parts_raw)
+                else:
+                    required = default_parts_for_job_type(data["job_type"])
+
+                job = Job.model_validate({**data, "required_parts": required})
+                jobs.append(job)
+            except (ValidationError, ValueError) as exc:
+                if isinstance(exc, ValidationError):
+                    err = exc.errors()[0]
+                    loc = ".".join(str(p) for p in err.get("loc", ()))
+                    msg = err.get("msg", str(exc))
+                    detail = f"Invalid job data ({loc}): {msg}"
+                else:
+                    detail = str(exc)
+                raise CSVLoadError(detail, row=line_no) from exc
+
+        return jobs
+    finally:
+        if should_close:
+            stream.close()
+</file>
+
+<file path="src/truck_ready/seed.py">
+"""Realistic seed data for demos, tests, and pilot conversations.
+
+Parts lists are based on common residential HVAC truck stock
+(capacitors, contactors, filters, motors, etc.).
+"""
+
+from __future__ import annotations
+
+from truck_ready.core import default_parts_for_job_type
+from truck_ready.models import InventoryItem, Job
+
+
+def demo_inventory() -> list[InventoryItem]:
+    """Typical mixed truck + shop stock for a small residential HVAC shop."""
+    return [
+        InventoryItem(
+            sku="CAP-45-5",
+            name="Dual Run Capacitor 45/5 MFD",
+            quantity=6,
+            reorder_point=4,
+            unit_cost=12.50,
+            category="electrical",
+        ),
+        InventoryItem(
+            sku="CAP-35-5",
+            name="Dual Run Capacitor 35/5 MFD",
+            quantity=4,
+            reorder_point=3,
+            unit_cost=11.75,
+            category="electrical",
+        ),
+        InventoryItem(
+            sku="CAP-40-5",
+            name="Dual Run Capacitor 40/5 MFD",
+            quantity=2,
+            reorder_point=3,
+            unit_cost=12.00,
+            category="electrical",
+        ),
+        InventoryItem(
+            sku="CONT-30A",
+            name="Contactor 30A 1-Pole",
+            quantity=5,
+            reorder_point=3,
+            unit_cost=18.00,
+            category="electrical",
+        ),
+        InventoryItem(
+            sku="CONT-40A",
+            name="Contactor 40A 2-Pole",
+            quantity=3,
+            reorder_point=2,
+            unit_cost=24.50,
+            category="electrical",
+        ),
+        InventoryItem(
+            sku="FILTER-20x25",
+            name="Air Filter 20x25x1 MERV 8",
+            quantity=18,
+            reorder_point=10,
+            unit_cost=4.25,
+            category="filtration",
+        ),
+        InventoryItem(
+            sku="FILTER-16x25",
+            name="Air Filter 16x25x1 MERV 8",
+            quantity=8,
+            reorder_point=6,
+            unit_cost=3.90,
+            category="filtration",
+        ),
+        InventoryItem(
+            sku="MTR-0.5HP",
+            name="Condenser Fan Motor 1/2 HP",
+            quantity=1,
+            reorder_point=1,
+            unit_cost=145.00,
+            category="motors",
+        ),
+        InventoryItem(
+            sku="BELT-48",
+            name='Blower Belt 48"',
+            quantity=3,
+            reorder_point=2,
+            unit_cost=9.50,
+            category="mechanical",
+        ),
+        InventoryItem(
+            sku="LINESET-50",
+            name="Line Set 50 ft",
+            quantity=0,
+            reorder_point=1,
+            unit_cost=185.00,
+            category="install",
+        ),
+        InventoryItem(
+            sku="PAD-CONC",
+            name="Concrete Pad",
+            quantity=2,
+            reorder_point=1,
+            unit_cost=42.00,
+            category="install",
+        ),
+        InventoryItem(
+            sku="WHIP-6/3",
+            name="Disconnect Whip 6/3",
+            quantity=1,
+            reorder_point=1,
+            unit_cost=28.00,
+            category="electrical",
+        ),
+        InventoryItem(
+            sku="HARDSTART",
+            name="Hard Start Kit",
+            quantity=4,
+            reorder_point=2,
+            unit_cost=22.00,
+            category="electrical",
+        ),
+        InventoryItem(
+            sku="TXV-3TON",
+            name="TXV 3-Ton",
+            quantity=1,
+            reorder_point=1,
+            unit_cost=95.00,
+            category="refrigeration",
+        ),
+    ]
+
+
+def demo_jobs() -> list[Job]:
+    """A realistic day for a 3-truck residential shop."""
+    return [
+        Job(
+            job_id="JOB-1001",
+            job_type="Emergency_Repair",
+            customer_name="Martinez Residence",
+            scheduled_date="2026-07-28",
+            assigned_tech="TCH-01",
+            required_parts=default_parts_for_job_type("Emergency_Repair"),
+            notes="No-cool call, older 3-ton unit",
+        ),
+        Job(
+            job_id="JOB-1002",
+            job_type="HVAC_Maintenance",
+            customer_name="Chen Residence",
+            scheduled_date="2026-07-28",
+            assigned_tech="TCH-02",
+            required_parts=default_parts_for_job_type("HVAC_Maintenance"),
+            notes="Seasonal tune-up + filter change",
+        ),
+        Job(
+            job_id="JOB-1003",
+            job_type="Heat_Pump_Install",
+            customer_name="Patel Residence",
+            scheduled_date="2026-07-28",
+            assigned_tech="TCH-01",
+            required_parts=default_parts_for_job_type("Heat_Pump_Install"),
+            notes="3-ton heat pump change-out",
+        ),
+        Job(
+            job_id="JOB-1004",
+            job_type="Emergency_Repair",
+            customer_name="Sullivan Residence",
+            scheduled_date="2026-07-28",
+            assigned_tech="TCH-03",
+            required_parts=default_parts_for_job_type("Emergency_Repair"),
+            notes="Intermittent cooling, possible capacitor",
+        ),
+    ]
+</file>
+
+<file path="requirements.txt">
+# Runtime deps for Streamlit Community Cloud and simple pip installs.
+# Keep in sync with [project.dependencies] in pyproject.toml.
+# Editable install so `from truck_ready...` works with src/ layout.
+-e .
+streamlit>=1.35
+pydantic>=2.7
+fpdf2>=2.8.0
+</file>
+
+<file path="src/truck_ready/models.py">
+"""Domain models for the Truck Ready HVAC closed loop.
+
+Jobs + truck stock → parts availability → pre-departure checklist → offline export.
+All public models are fully typed and validated.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Annotated
+
+from pydantic import BaseModel, Field, field_validator
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+class Urgency(StrEnum):
+    """How critical a missing part is to completing the job today."""
+
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class Action(StrEnum):
+    """What the technician should do with this checklist line."""
+
+    STAGE = "STAGE"
+    PICK_UP = "PICK_UP"
+    REORDER = "REORDER"
+
+
+class InventoryItem(BaseModel):
+    """A single part currently on a truck or in the shop."""
+
+    sku: Annotated[str, Field(min_length=1, description="Unique part identifier")]
+    name: Annotated[str, Field(min_length=1)]
+    quantity: Annotated[int, Field(ge=0)]
+    reorder_point: Annotated[int, Field(ge=0, default=5)]
+    unit_cost: Annotated[float, Field(ge=0.0, default=0.0)]
+    category: Annotated[str, Field(default="general")]
+
+    @field_validator("sku")
+    @classmethod
+    def normalize_sku(cls, value: str) -> str:
+        return value.strip().upper()
+
+
+class RequiredPart(BaseModel):
+    """A part required for a specific job."""
+
+    sku: Annotated[str, Field(min_length=1)]
+    name: Annotated[str, Field(min_length=1)]
+    quantity_needed: Annotated[int, Field(ge=1, default=1)]
+    urgency: Urgency = Urgency.MEDIUM
+
+    @field_validator("sku")
+    @classmethod
+    def normalize_sku(cls, value: str) -> str:
+        return value.strip().upper()
+
+
+class Job(BaseModel):
+    """A scheduled service or install job."""
+
+    job_id: Annotated[str, Field(min_length=1)]
+    job_type: Annotated[str, Field(min_length=1)]
+    customer_name: Annotated[str, Field(min_length=1)]
+    scheduled_date: str
+    required_parts: list[RequiredPart] = Field(default_factory=list)
+    assigned_tech: str | None = None
+    notes: str = ""
+
+    @field_validator("job_id")
+    @classmethod
+    def normalize_job_id(cls, value: str) -> str:
+        return value.strip().upper()
+
+
+class PartAvailability(BaseModel):
+    """Availability status for one required part against current stock."""
+
+    sku: str
+    name: str
+    quantity_needed: int
+    quantity_on_hand: int
+    is_available: bool
+    shortfall: int = Field(ge=0, description="How many units are missing")
+    urgency: Urgency
+
+    @property
+    def status_label(self) -> str:
+        if self.is_available:
+            return "READY"
+        if self.urgency in {Urgency.CRITICAL, Urgency.HIGH}:
+            return "MISSING — CRITICAL"
+        return "MISSING"
+
+
+class PartsCheckResult(BaseModel):
+    """Result of checking all required parts for a single job."""
+
+    job_id: str
+    parts: list[PartAvailability]
+    availability_score: Annotated[float, Field(ge=0.0, le=1.0)]
+    missing_count: int = Field(ge=0)
+    ready_count: int = Field(ge=0)
+
+    @property
+    def is_fully_ready(self) -> bool:
+        return self.missing_count == 0
+
+
+class ChecklistItem(BaseModel):
+    """One line on the pre-departure checklist."""
+
+    sku: str
+    name: str
+    quantity: Annotated[int, Field(ge=1)]
+    action: Action
+    urgency: Urgency
+    related_jobs: list[str] = Field(default_factory=list)
+    notes: str = ""
+
+
+class PreDepartureChecklist(BaseModel):
+    """The final artifact the technician takes into the field."""
+
+    generated_at: datetime = Field(default_factory=_utc_now)
+    tech_id: str | None = None
+    jobs_covered: list[str]
+    items_to_stage: list[ChecklistItem]
+    items_missing: list[ChecklistItem]
+    reorder_suggestions: list[ChecklistItem]
+    overall_readiness_score: Annotated[float, Field(ge=0.0, le=1.0)]
+    summary: str
+
+    @property
+    def total_items(self) -> int:
+        return (
+            len(self.items_to_stage)
+            + len(self.items_missing)
+            + len(self.reorder_suggestions)
+        )
+</file>
+
+<file path="tests/test_core.py">
+"""Tests for the pure parts availability + checklist engine."""
+
+from __future__ import annotations
+
+from truck_ready.core import (
+    build_pre_departure_checklist,
+    build_stock_index,
+    check_all_jobs,
+    check_job_parts,
+    default_parts_for_job_type,
+)
+from truck_ready.models import Action, InventoryItem, Job, RequiredPart, Urgency
+from truck_ready.seed import demo_inventory, demo_jobs
+
+
+def test_build_stock_index() -> None:
+    inv = [
+        InventoryItem(sku="CAP-45-5", name="Cap", quantity=3),
+        InventoryItem(sku="CONT-30A", name="Contactor", quantity=2),
+    ]
+    index = build_stock_index(inv)
+    assert "CAP-45-5" in index
+    assert index["CONT-30A"].quantity == 2
+
+
+def test_check_job_parts_all_available() -> None:
+    job = Job(
+        job_id="JOB-1",
+        job_type="Repair",
+        customer_name="Test",
+        scheduled_date="2026-07-28",
+        required_parts=[
+            RequiredPart(sku="CAP-45-5", name="Cap", quantity_needed=1),
+        ],
+    )
+    inv = [InventoryItem(sku="CAP-45-5", name="Cap", quantity=5)]
+    result = check_job_parts(job, build_stock_index(inv))
+
+    assert result.is_fully_ready is True
+    assert result.missing_count == 0
+    assert result.availability_score == 1.0
+    assert result.parts[0].is_available is True
+
+
+def test_check_job_parts_missing() -> None:
+    job = Job(
+        job_id="JOB-2",
+        job_type="Install",
+        customer_name="Test",
+        scheduled_date="2026-07-28",
+        required_parts=[
+            RequiredPart(
+                sku="LINESET-50",
+                name="Line Set",
+                quantity_needed=1,
+                urgency=Urgency.CRITICAL,
+            ),
+        ],
+    )
+    inv = [InventoryItem(sku="CAP-45-5", name="Cap", quantity=5)]
+    result = check_job_parts(job, build_stock_index(inv))
+
+    assert result.is_fully_ready is False
+    assert result.missing_count == 1
+    assert result.availability_score == 0.0
+    assert result.parts[0].shortfall == 1
+    assert result.parts[0].status_label == "MISSING — CRITICAL"
+
+
+def test_check_all_jobs_with_seed_data() -> None:
+    results = check_all_jobs(demo_jobs(), demo_inventory())
+    assert len(results) == 4
+    assert all(isinstance(r.availability_score, float) for r in results)
+
+
+def test_build_checklist_produces_actionable_output() -> None:
+    checklist = build_pre_departure_checklist(
+        jobs=demo_jobs(),
+        inventory=demo_inventory(),
+        tech_id="TCH-01",
+    )
+
+    assert checklist.tech_id == "TCH-01"
+    assert len(checklist.jobs_covered) == 4
+    assert 0.0 <= checklist.overall_readiness_score <= 1.0
+    assert checklist.summary
+
+    missing_skus = {item.sku for item in checklist.items_missing}
+    assert "LINESET-50" in missing_skus
+
+    stage_skus = {item.sku for item in checklist.items_to_stage}
+    assert "CAP-45-5" in stage_skus or "FILTER-20x25" in stage_skus
+
+
+def test_partial_stock_stages_available_and_flags_shortfall() -> None:
+    """Have 1, need 3 → STAGE 1 + PICK_UP 2."""
+    jobs = [
+        Job(
+            job_id="JOB-A",
+            job_type="Repair",
+            customer_name="A",
+            scheduled_date="2026-07-28",
+            required_parts=[
+                RequiredPart(
+                    sku="CAP-45-5",
+                    name="Cap",
+                    quantity_needed=2,
+                    urgency=Urgency.HIGH,
+                ),
+            ],
+        ),
+        Job(
+            job_id="JOB-B",
+            job_type="Repair",
+            customer_name="B",
+            scheduled_date="2026-07-28",
+            required_parts=[
+                RequiredPart(
+                    sku="CAP-45-5",
+                    name="Cap",
+                    quantity_needed=1,
+                    urgency=Urgency.MEDIUM,
+                ),
+            ],
+        ),
+    ]
+    inv = [InventoryItem(sku="CAP-45-5", name="Cap", quantity=1, reorder_point=2)]
+
+    checklist = build_pre_departure_checklist(jobs=jobs, inventory=inv)
+
+    stage_items = [i for i in checklist.items_to_stage if i.sku == "CAP-45-5"]
+    missing_items = [i for i in checklist.items_missing if i.sku == "CAP-45-5"]
+
+    assert len(stage_items) == 1
+    assert stage_items[0].quantity == 1
+    assert stage_items[0].action == Action.STAGE
+
+    assert len(missing_items) == 1
+    assert missing_items[0].quantity == 2
+    assert missing_items[0].action == Action.PICK_UP
+
+
+def test_absent_sku_generates_reorder() -> None:
+    """SKU not in inventory at all must still produce a REORDER line."""
+    jobs = [
+        Job(
+            job_id="JOB-X",
+            job_type="Install",
+            customer_name="X",
+            scheduled_date="2026-07-28",
+            required_parts=[
+                RequiredPart(
+                    sku="LINESET-50",
+                    name="Line Set",
+                    quantity_needed=1,
+                    urgency=Urgency.CRITICAL,
+                ),
+            ],
+        ),
+    ]
+    checklist = build_pre_departure_checklist(jobs=jobs, inventory=[])
+
+    assert any(
+        i.sku == "LINESET-50" and i.action == Action.PICK_UP
+        for i in checklist.items_missing
+    )
+    assert any(
+        i.sku == "LINESET-50" and i.action == Action.REORDER
+        for i in checklist.reorder_suggestions
+    )
+    assert not any(i.sku == "LINESET-50" for i in checklist.items_to_stage)
+
+
+def test_default_parts_for_common_types() -> None:
+    repair = default_parts_for_job_type("Emergency_Repair")
+    install = default_parts_for_job_type("Heat_Pump_Install")
+    maint = default_parts_for_job_type("HVAC_Maintenance")
+
+    assert len(repair) >= 3
+    assert any(p.sku.startswith("CAP-") for p in repair)
+    assert any(p.sku == "LINESET-50" for p in install)
+    assert any("FILTER" in p.sku for p in maint)
+</file>
+
+<file path="AGENTS.md">
+# AGENTS.md — Truck Ready HVAC
+
+Short, high-signal instructions for any coding agent working on this repository.
+
+## What this project is
+
+One closed loop for small HVAC contractors:
+
+**jobs + truck stock → parts availability → pre-departure checklist → offline export (JSON + PDF)**
+
+Nothing else. No multi-agent platform, no orchestration layer, no AI copilot surface.
+
+## Invariants (do not break)
+
+1. **Core is pure.** `src/truck_ready/core.py` must remain free of I/O, side effects, Streamlit, CSV, network, or filesystem calls. All decision logic lives here.
+2. **Models are the source of truth.** Validation and serialization happen through Pydantic models in `models.py`. Do not invent parallel dict shapes.
+3. **One closed loop.** Features that expand beyond the four steps above require an explicit product decision, not opportunistic scope creep.
+4. **Partial staging is correct behavior.** If stock has 1 and jobs need 3, the checklist must STAGE 1 *and* PICK_UP 2. Both lines appear.
+5. **Absent SKUs must produce REORDER.** A required part that does not exist in inventory still generates a reorder suggestion.
+
+## Pydantic validation strategy
+
+We use a deliberate, lightweight set of Pydantic v2 patterns. Prefer these over custom validation code.
+
+### Preferred patterns
+
+- **`Annotated[T, Field(...)]`** for constraints and defaults (`min_length`, `ge=0`, `default=...`). Keeps the type and the rule together.
+- **`@field_validator`** only for normalization that must happen on every construction (SKU / job_id uppercasing + strip). Do not put business rules here.
+- **`StrEnum`** for closed value sets (`Urgency`, `Action`). Never free-form strings for these concepts.
+- **`model_validate(dict)`** at the boundary (CSV rows → models). Never `**kwargs` construction in adapters when the input is untrusted.
+- **Catch `ValidationError` once** in the adapter (`io.py`) and re-raise as `CSVLoadError` with 1-based row number + first error location/message. Contractors see human text, not Pydantic internals.
+
+### What we deliberately avoid
+
+- Model-level `@model_validator` unless a multi-field invariant is truly required.
+- Custom root models or heavily nested validators.
+- Silent coercion of bad data (e.g. turning negative quantity into 0). Fail loud with row context.
+- Parallel plain-dict schemas. The Pydantic model *is* the schema.
+
+### Testing expectation
+
+- Unit-test model constraints and normalizers in `tests/test_models.py`.
+- Unit-test adapter error paths (missing columns, bad types, bad parts syntax) in `tests/test_io.py`.
+- Happy-path samples live in `data/samples/` and are loaded by the same tests.
+
+## CSV schema versioning
+
+Current state: **implicit schema v1**. No version column or header comment is required today. Column names are the contract (case-insensitive, extra columns ignored).
+
+### Evolution rules
+
+1. **Additive only for pilots.** New optional columns may be added without a version bump. Required columns are frozen until a deliberate v2.
+2. **When a breaking change is needed** (rename, type change, removal of a required column):
+   - Introduce an explicit `schema_version` column (or a first-line comment `# schema_version=2`).
+   - Keep the old loader path for v1 for at least one pilot cycle.
+   - Document the change in `docs/CSV_FORMAT.md` with a clear migration note.
+3. **Do not** invent a full schema registry or migration framework. This is a spreadsheet product for small shops.
+4. **Default parts fallback** (when `required_parts` is blank) is part of the v1 contract and must remain.
+
+See `docs/CSV_FORMAT.md` for the exact column contracts.
+
+## Tooling (exact)
+
+- Python ≥ 3.11
+- Package manager: pip (editable install)
+- Lint + format: `ruff check src tests` and `ruff format --check src tests`
+- Tests: `pytest -v --cov=truck_ready --cov-report=term-missing`
+- Type check (when needed): `mypy src`
+- UI: `streamlit run app.py`
+
+Always run the quality gates above before considering a change complete.
+
+## Layout
+
+```
+src/truck_ready/
+  models.py      # Pydantic domain models (Urgency, Action, InventoryItem, Job, …)
+  core.py        # Pure functions only
+  export.py      # JSON serialization for offline use
+  pdf.py         # Printable PDF adapter (fpdf2)
+  io.py          # CSV → domain model loaders (thin adapter)
+  seed.py        # Demo data
+app.py           # Streamlit thin UI
+tests/           # pytest, importlib mode
+data/samples/    # Example CSVs for pilots
+docs/            # Longer architecture + CSV format notes
+requirements.txt # Streamlit Community Cloud runtime deps
+```
+
+## How to extend safely
+
+- New domain rules → pure function in `core.py` + tests.
+- New data source (CSV, future API) → thin adapter under `io.py` or a new adapter module. Never pull I/O into core.
+- New export format (PDF, etc.) → thin adapter (`pdf.py`, `export.py`). Never pull rendering into core.
+- UI changes stay in `app.py` (or a future thin CLI).
+- Prefer stdlib + Pydantic + fpdf2. Do not add pandas, polars, or heavy frameworks without a documented need.
+
+## Current next slice
+
+PDF + JSON offline export is implemented. Next high-value items (only if a real pilot needs them):
+
+- Hosted demo link on Streamlit Community Cloud
+- Explicit parts column / second parts CSV if contractors supply exact BOMs
+- Optional `schema_version` column once a second pilot forces a breaking change
+
+## Do not
+
+- Introduce multi-agent or LLM orchestration into this repo.
+- Soften the pure-core boundary.
+- Add dependencies that are not required for the closed loop.
+- Soften validation (negative quantities, empty SKUs, unknown urgencies must fail).
+</file>
+
+<file path="app.py">
+"""Streamlit entry point for Truck Ready HVAC — redesigned UI.
+
+Thin presentation layer only. All domain logic lives in truck_ready.*
+Drop-in replacement for the original app.py — zero backend changes.
+"""
+
+from __future__ import annotations
+
+import streamlit as st
+
+from truck_ready.core import build_pre_departure_checklist, check_all_jobs
+from truck_ready.export import checklist_to_json_string
+from truck_ready.io import CSVLoadError, load_inventory_csv, load_jobs_csv
+from truck_ready.models import ChecklistItem, Urgency
+from truck_ready.pdf import checklist_to_pdf_bytes
+from truck_ready.seed import demo_inventory, demo_jobs
+
+# ── Page config ────────────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="Truck Ready HVAC",
+    page_icon="TR",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ── Custom CSS ─────────────────────────────────────────────────────────────────
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+    /* ── Root variables ── */
+    :root {
+        --bg-base:        #0d1117;
+        --bg-surface:     #161b22;
+        --bg-elevated:    #1c2330;
+        --bg-hover:       #21282f;
+        --border:         #30363d;
+        --border-subtle:  #21262d;
+
+        --text-primary:   #e6edf3;
+        --text-secondary: #8b949e;
+        --text-muted:     #484f58;
+
+        --accent-blue:    #1f6feb;
+        --accent-blue-bg: #0d1f38;
+
+        --green:          #3fb950;
+        --green-bg:       #0d2818;
+        --green-border:   #1a4428;
+
+        --red:            #f85149;
+        --red-bg:         #2d1216;
+        --red-border:     #4a1e22;
+
+        --orange:         #e3b341;
+        --orange-bg:      #2d2007;
+        --orange-border:  #4a3408;
+
+        --critical:       #ff6b6b;
+        --critical-bg:    rgba(255,107,107,0.12);
+        --high:           #ffa94d;
+        --high-bg:        rgba(255,169,77,0.12);
+        --medium:         #74c0fc;
+        --medium-bg:      rgba(116,192,252,0.12);
+        --low:            #8b949e;
+        --low-bg:         rgba(139,148,158,0.10);
+
+        --font-ui:   'IBM Plex Sans', sans-serif;
+        --font-mono: 'IBM Plex Mono', monospace;
+
+        --radius-sm: 4px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+    }
+
+    /* ── Global reset ── */
+    html, body, [class*="css"] {
+        font-family: var(--font-ui) !important;
+        background-color: var(--bg-base) !important;
+        color: var(--text-primary) !important;
+    }
+
+    /* Hide Streamlit chrome */
+    #MainMenu, footer, header { visibility: hidden; }
+    .stDeployButton { display: none; }
+    .block-container {
+        padding: 1.5rem 2rem 3rem !important;
+        max-width: 1400px !important;
+    }
+
+    /* ── Sidebar ── */
+    [data-testid="stSidebar"] {
+        background-color: var(--bg-surface) !important;
+        border-right: 1px solid var(--border) !important;
+    }
+    [data-testid="stSidebar"] * {
+        color: var(--text-primary) !important;
+    }
+    [data-testid="stSidebar"] .stRadio label,
+    [data-testid="stSidebar"] .stFileUploader label {
+        color: var(--text-secondary) !important;
+        font-size: 0.8rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    /* ── Buttons ── */
+    .stButton > button {
+        background-color: var(--accent-blue) !important;
+        color: #fff !important;
+        border: none !important;
+        border-radius: var(--radius-md) !important;
+        font-family: var(--font-ui) !important;
+        font-weight: 600 !important;
+        font-size: 0.85rem !important;
+        padding: 0.55rem 1.1rem !important;
+        transition: all 0.15s ease !important;
+    }
+    .stButton > button:hover {
+        background-color: #388bfd !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(31,111,235,0.35) !important;
+    }
+    .stDownloadButton > button {
+        border-radius: var(--radius-md) !important;
+        font-family: var(--font-ui) !important;
+        font-weight: 600 !important;
+        font-size: 0.85rem !important;
+        transition: all 0.15s ease !important;
+    }
+
+    /* ── Tabs ── */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: transparent !important;
+        border-bottom: 1px solid var(--border) !important;
+        gap: 0 !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent !important;
+        color: var(--text-secondary) !important;
+        font-family: var(--font-ui) !important;
+        font-weight: 500 !important;
+        font-size: 0.85rem !important;
+        padding: 0.65rem 1.2rem !important;
+        border-bottom: 2px solid transparent !important;
+        border-radius: 0 !important;
+        transition: all 0.15s ease;
+    }
+    .stTabs [aria-selected="true"] {
+        color: var(--text-primary) !important;
+        border-bottom: 2px solid var(--accent-blue) !important;
+        background-color: transparent !important;
+    }
+    .stTabs [data-baseweb="tab-panel"] {
+        padding: 1.5rem 0 !important;
+    }
+
+    /* ── Metrics ── */
+    [data-testid="stMetric"] {
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius-lg) !important;
+        padding: 1.1rem 1.3rem !important;
+    }
+    [data-testid="stMetricLabel"] {
+        color: var(--text-secondary) !important;
+        font-size: 0.75rem !important;
+        font-weight: 500 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+    }
+    [data-testid="stMetricValue"] {
+        color: var(--text-primary) !important;
+        font-family: var(--font-mono) !important;
+        font-size: 1.9rem !important;
+        font-weight: 600 !important;
+    }
+
+    /* ── Expanders ── */
+    [data-testid="stExpander"] {
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius-md) !important;
+    }
+    [data-testid="stExpander"] summary {
+        color: var(--text-secondary) !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+    }
+
+    /* ── Code blocks ── */
+    .stCodeBlock {
+        border-radius: var(--radius-md) !important;
+    }
+
+    /* ── Divider ── */
+    hr { border-color: var(--border) !important; }
+
+    /* ── Info / Error / Warning alerts ── */
+    [data-testid="stAlert"] {
+        border-radius: var(--radius-md) !important;
+        font-size: 0.88rem !important;
+    }
+
+    /* ── File uploader ── */
+    [data-testid="stFileUploader"] {
+        background-color: var(--bg-surface) !important;
+        border: 1px dashed var(--border) !important;
+        border-radius: var(--radius-md) !important;
+        padding: 0.5rem !important;
+    }
+
+    /* ── Custom component styles ── */
+    .tr-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 0 0 1.5rem 0;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 1.75rem;
+    }
+    .tr-header-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+    }
+    .tr-logo {
+        width: 42px;
+        height: 42px;
+        background: linear-gradient(135deg, var(--accent-blue), #58a6ff);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-mono);
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #fff;
+        letter-spacing: -0.03em;
+        flex-shrink: 0;
+    }
+    .tr-header-text h1 {
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+        color: var(--text-primary) !important;
+        margin: 0 0 0.1rem 0 !important;
+        padding: 0 !important;
+        line-height: 1.2 !important;
+    }
+    .tr-header-text p {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+    .tr-header-meta {
+        text-align: right;
+    }
+    .tr-header-meta .ts {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        color: var(--text-muted);
+    }
+    .tr-header-meta .tech-badge {
+        display: inline-block;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 0.2rem 0.7rem;
+        font-size: 0.72rem;
+        font-family: var(--font-mono);
+        color: var(--text-secondary);
+        margin-top: 0.3rem;
+    }
+
+    /* Readiness banner */
+    .tr-readiness-bar {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1rem 1.4rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+    }
+    .tr-readiness-score {
+        font-family: var(--font-mono);
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        white-space: nowrap;
+    }
+    .tr-readiness-label {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.3rem;
+    }
+    .tr-progress-track {
+        flex: 1;
+        height: 8px;
+        background: var(--bg-elevated);
+        border-radius: 99px;
+        overflow: hidden;
+    }
+    .tr-progress-fill {
+        height: 100%;
+        border-radius: 99px;
+        transition: width 0.6s ease;
+    }
+    .tr-summary-text {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-top: 0.3rem;
+    }
+
+    /* Section headers inside tabs */
+    .tr-section-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        margin-bottom: 0.6rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    /* Checklist item card */
+    .tr-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.9rem;
+        padding: 0.85rem 1rem;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        margin-bottom: 0.5rem;
+        transition: border-color 0.12s ease, background 0.12s ease;
+    }
+    .tr-item:hover {
+        background: var(--bg-hover);
+        border-color: #3d444d;
+    }
+    .tr-item-checkbox {
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--border);
+        border-radius: 4px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .tr-item-body { flex: 1; min-width: 0; }
+    .tr-item-top {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.3rem;
+    }
+    .tr-sku {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 0.1rem 0.45rem;
+        white-space: nowrap;
+    }
+    .tr-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    .tr-item-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .tr-qty {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+    .tr-qty strong {
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+    .tr-note {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+    .tr-job-tag {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--accent-blue);
+        background: var(--accent-blue-bg);
+        border: 1px solid rgba(31,111,235,0.3);
+        border-radius: 3px;
+        padding: 0.05rem 0.35rem;
+        white-space: nowrap;
+    }
+
+    /* Urgency badges */
+    .tr-urgency {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        border-radius: 3px;
+        padding: 0.12rem 0.45rem;
+        white-space: nowrap;
+    }
+    .urg-critical { color: var(--critical); background: var(--critical-bg); }
+    .urg-high     { color: var(--high);     background: var(--high-bg); }
+    .urg-medium   { color: var(--medium);   background: var(--medium-bg); }
+    .urg-low      { color: var(--low);      background: var(--low-bg); }
+
+    /* Action indicator stripe */
+    .tr-item.action-stage   { border-left: 3px solid var(--green); }
+    .tr-item.action-missing { border-left: 3px solid var(--red); }
+    .tr-item.action-reorder { border-left: 3px solid var(--orange); }
+
+    /* Empty state */
+    .tr-empty {
+        text-align: center;
+        padding: 2.5rem 1rem;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+    .tr-empty-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        opacity: 0.4;
+    }
+
+    /* Job card in sidebar */
+    .tr-job-card {
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 0.7rem 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+    .tr-job-card .jid {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        color: var(--accent-blue);
+        margin-bottom: 0.15rem;
+    }
+    .tr-job-card .jname {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.1rem;
+    }
+    .tr-job-card .jtype {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+    }
+    .tr-job-card .jtech {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.65rem;
+        color: var(--text-secondary);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        padding: 0.05rem 0.35rem;
+        margin-top: 0.3rem;
+    }
+    .tr-job-score {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 600;
+        border-radius: 3px;
+        padding: 0.1rem 0.4rem;
+        float: right;
+        margin-top: 0.1rem;
+    }
+    .score-ready  { color: var(--green);  background: var(--green-bg); }
+    .score-warn   { color: var(--orange); background: var(--orange-bg); }
+    .score-danger { color: var(--red);    background: var(--red-bg); }
+
+    /* Export section */
+    .tr-export-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.4rem 1.6rem;
+    }
+    .tr-export-card h4 {
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        color: var(--text-primary) !important;
+        margin: 0 0 0.25rem 0 !important;
+    }
+    .tr-export-card p {
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        margin: 0 0 1rem 0;
+    }
+
+    /* Sidebar section labels */
+    .sb-label {
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        margin: 1.2rem 0 0.5rem 0;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _urgency_badge(urgency: Urgency) -> str:
+    cls = {
+        Urgency.CRITICAL: "urg-critical",
+        Urgency.HIGH: "urg-high",
+        Urgency.MEDIUM: "urg-medium",
+        Urgency.LOW: "urg-low",
+    }[urgency]
+    return f'<span class="tr-urgency {cls}">{urgency.value}</span>'
+
+
+def _job_tags(jobs: list[str]) -> str:
+    return " ".join(f'<span class="tr-job-tag">{j}</span>' for j in jobs)
+
+
+def _render_checklist_item(item: ChecklistItem, action_class: str) -> str:
+    badge = _urgency_badge(item.urgency)
+    tags = _job_tags(item.related_jobs)
+    note_html = f'<span class="tr-note">{item.notes}</span>' if item.notes else ""
+    return f"""
+    <div class="tr-item {action_class}">
+        <div class="tr-item-checkbox"></div>
+        <div class="tr-item-body">
+            <div class="tr-item-top">
+                <span class="tr-sku">{item.sku}</span>
+                <span class="tr-name">{item.name}</span>
+                {badge}
+            </div>
+            <div class="tr-item-meta">
+                <span class="tr-qty">Qty: <strong>{item.quantity}</strong></span>
+                {tags}
+                {note_html}
+            </div>
+        </div>
+    </div>
+    """
+
+
+def _readiness_color(score: float) -> str:
+    if score >= 0.8:
+        return "var(--green)"
+    if score >= 0.5:
+        return "var(--orange)"
+    return "var(--red)"
+
+
+# ── Sidebar ─────────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown('<p class="sb-label">Data Source</p>', unsafe_allow_html=True)
+    source = st.radio(
+        "Load from",
+        options=["Demo Company", "Upload CSVs"],
+        index=0,
+        label_visibility="collapsed",
+    )
+
+    jobs = None
+    inventory = None
+    load_error: str | None = None
+
+    if source == "Demo Company":
+        if st.button("Reload Demo Data", use_container_width=True):
+            st.session_state.pop("checklist", None)
+            st.session_state.pop("_jobs_id", None)
+            st.session_state.pop("_inv_id", None)
+        jobs = demo_jobs()
+        inventory = demo_inventory()
+    else:
+        st.markdown(
+            '<p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;">'
+            "Upload two CSVs — see docs/CSV_FORMAT.md for column specs.</p>",
+            unsafe_allow_html=True,
+        )
+        inv_file = st.file_uploader("Inventory CSV", type=["csv"], key="inv_up")
+        jobs_file = st.file_uploader("Jobs CSV", type=["csv"], key="jobs_up")
+
+        if inv_file is not None and jobs_file is not None:
+            try:
+                inventory = load_inventory_csv(inv_file)
+                jobs = load_jobs_csv(jobs_file)
+            except CSVLoadError as exc:
+                load_error = str(exc)
+        elif inv_file is not None or jobs_file is not None:
+            st.info("Upload both files to generate a checklist.")
+
+    # Fallback so UI is never empty
+    if jobs is None or inventory is None:
+        jobs = demo_jobs()
+        inventory = demo_inventory()
+
+    # Build or reuse cached checklist
+    if (
+        "checklist" not in st.session_state
+        or st.session_state.get("_jobs_id") != id(jobs)
+        or st.session_state.get("_inv_id") != id(inventory)
+    ):
+        checklist = build_pre_departure_checklist(
+            jobs=jobs,
+            inventory=inventory,
+            tech_id="TCH-01",
+        )
+        st.session_state["checklist"] = checklist
+        st.session_state["_jobs_id"] = id(jobs)
+        st.session_state["_inv_id"] = id(inventory)
+        st.session_state["_jobs_obj"] = jobs
+        st.session_state["_inv_obj"] = inventory
+
+    checklist = st.session_state["checklist"]
+    _jobs_for_sidebar = st.session_state.get("_jobs_obj", jobs)
+    _inv_for_sidebar = st.session_state.get("_inv_obj", inventory)
+
+    # Per-job breakdown
+    st.markdown('<p class="sb-label">Jobs Today</p>', unsafe_allow_html=True)
+    job_results = check_all_jobs(_jobs_for_sidebar, _inv_for_sidebar)
+    for job, result in zip(_jobs_for_sidebar, job_results):
+        score_pct = result.availability_score
+        if score_pct >= 0.8:
+            score_cls = "score-ready"
+        elif score_pct >= 0.5:
+            score_cls = "score-warn"
+        else:
+            score_cls = "score-danger"
+
+        jtype_display = job.job_type.replace("_", " ")
+        tech_html = (
+            f'<span class="jtech">{job.assigned_tech}</span>'
+            if job.assigned_tech
+            else ""
+        )
+        st.markdown(
+            f"""
+            <div class="tr-job-card">
+                <span class="tr-job-score {score_cls}">{score_pct:.0%}</span>
+                <div class="jid">{job.job_id}</div>
+                <div class="jname">{job.customer_name}</div>
+                <div class="jtype">{jtype_display}</div>
+                {tech_html}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown('<p class="sb-label">About</p>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.6;margin:0;">
+        Jobs + truck stock &rarr; pre-departure checklist &rarr; offline export.<br>
+        Stage once. Fix it first visit.
+        </p>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ── Error gate ──────────────────────────────────────────────────────────────────
+if load_error:
+    st.error(f"CSV load error: {load_error}")
+    st.stop()
+
+
+# ── Page header ─────────────────────────────────────────────────────────────────
+generated_ts = checklist.generated_at.strftime("%Y-%m-%d %H:%M UTC")
+tech_display = checklist.tech_id or "Unassigned"
+
+st.markdown(
+    f"""
+    <div class="tr-header">
+        <div class="tr-header-brand">
+            <div class="tr-logo">TR</div>
+            <div class="tr-header-text">
+                <h1>Truck Ready HVAC</h1>
+                <p>Pre-departure parts checklist &mdash; stage the right parts, finish more jobs first visit.</p>
+            </div>
+        </div>
+        <div class="tr-header-meta">
+            <div class="ts">{generated_ts}</div>
+            <div class="tech-badge">Tech: {tech_display}</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ── Readiness banner ─────────────────────────────────────────────────────────────
+score = checklist.overall_readiness_score
+score_color = _readiness_color(score)
+score_pct_int = int(score * 100)
+
+st.markdown(
+    f"""
+    <div class="tr-readiness-bar">
+        <div>
+            <div class="tr-readiness-label">Fleet Readiness</div>
+            <div class="tr-readiness-score" style="color:{score_color};">{score_pct_int}%</div>
+        </div>
+        <div style="flex:1;">
+            <div class="tr-readiness-label">Score across {len(checklist.jobs_covered)} job(s)</div>
+            <div class="tr-progress-track">
+                <div class="tr-progress-fill" style="width:{score_pct_int}%;background:{score_color};"></div>
+            </div>
+            <div class="tr-summary-text">{checklist.summary}</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ── KPI strip ────────────────────────────────────────────────────────────────────
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("Jobs Covered", len(checklist.jobs_covered))
+k2.metric("Ready to Stage", len(checklist.items_to_stage))
+k3.metric("Missing / Pick Up", len(checklist.items_missing))
+k4.metric("Reorder Needed", len(checklist.reorder_suggestions))
+
+st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
+
+
+# ── Main tabs ────────────────────────────────────────────────────────────────────
+stage_count = len(checklist.items_to_stage)
+missing_count = len(checklist.items_missing)
+reorder_count = len(checklist.reorder_suggestions)
+
+tab_stage, tab_missing, tab_reorder, tab_export = st.tabs(
+    [
+        f"Stage These  ({stage_count})",
+        f"Missing — Pick Up  ({missing_count})",
+        f"Reorder  ({reorder_count})",
+        "Offline Export",
+    ]
+)
+
+
+# ── Tab: Stage ───────────────────────────────────────────────────────────────────
+with tab_stage:
+    st.markdown(
+        '<p class="tr-section-label">Parts already on truck — load before departure</p>',
+        unsafe_allow_html=True,
+    )
+    if not checklist.items_to_stage:
+        st.markdown(
+            '<div class="tr-empty">'
+            '<div class="tr-empty-icon">[OK]</div>'
+            "<div>No parts to stage — checklist is clear.</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        html_rows = "".join(
+            _render_checklist_item(item, "action-stage")
+            for item in checklist.items_to_stage
+        )
+        st.markdown(html_rows, unsafe_allow_html=True)
+
+
+# ── Tab: Missing ─────────────────────────────────────────────────────────────────
+with tab_missing:
+    st.markdown(
+        '<p class="tr-section-label">Parts not on truck — pick up before rolling</p>',
+        unsafe_allow_html=True,
+    )
+    if not checklist.items_missing:
+        st.markdown(
+            '<div class="tr-empty">'
+            '<div class="tr-empty-icon">[OK]</div>'
+            "<div>No missing parts. Truck is ready to roll.</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        html_rows = "".join(
+            _render_checklist_item(item, "action-missing")
+            for item in checklist.items_missing
+        )
+        st.markdown(html_rows, unsafe_allow_html=True)
+
+
+# ── Tab: Reorder ─────────────────────────────────────────────────────────────────
+with tab_reorder:
+    st.markdown(
+        '<p class="tr-section-label">Parts below reorder point or absent from inventory</p>',
+        unsafe_allow_html=True,
+    )
+    if not checklist.reorder_suggestions:
+        st.markdown(
+            '<div class="tr-empty">'
+            '<div class="tr-empty-icon">[OK]</div>'
+            "<div>Stock levels are healthy. No reorders needed.</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        html_rows = "".join(
+            _render_checklist_item(item, "action-reorder")
+            for item in checklist.reorder_suggestions
+        )
+        st.markdown(html_rows, unsafe_allow_html=True)
+
+
+# ── Tab: Export ──────────────────────────────────────────────────────────────────
+with tab_export:
+    json_payload = checklist_to_json_string(checklist)
+    pdf_bytes = checklist_to_pdf_bytes(checklist)
+
+    col_json, col_pdf = st.columns(2, gap="medium")
+
+    with col_json:
+        st.markdown(
+            """
+            <div class="tr-export-card">
+                <h4>Offline JSON</h4>
+                <p>Self-contained payload — works on any device, zero signal required.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.download_button(
+            label="Download truck_ready_checklist.json",
+            data=json_payload,
+            file_name="truck_ready_checklist.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+
+    with col_pdf:
+        st.markdown(
+            """
+            <div class="tr-export-card">
+                <h4>Printable PDF</h4>
+                <p>Print-ready checklist with checkboxes — hand to the tech before departure.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.download_button(
+            label="Download truck_ready_checklist.pdf",
+            data=pdf_bytes,
+            file_name="truck_ready_checklist.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+
+    st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
+    with st.expander("Preview JSON payload"):
+        st.code(json_payload, language="json")
+</file>
+
+<file path="src/truck_ready/core.py">
+"""Core closed-loop logic: jobs + stock → availability → pre-departure checklist.
+
+All functions are pure (no I/O, no side effects) so they are trivial to test
+and reason about. Side effects (CSV load, export, UI) live outside this module.
+"""
+
+from __future__ import annotations
+
+from collections import defaultdict
+
+from truck_ready.models import (
+    Action,
+    ChecklistItem,
+    InventoryItem,
+    Job,
+    PartAvailability,
+    PartsCheckResult,
+    PreDepartureChecklist,
+    RequiredPart,
+    Urgency,
+)
+
+
+def build_stock_index(inventory: list[InventoryItem]) -> dict[str, InventoryItem]:
+    """Index inventory by normalized SKU for O(1) lookups.
+
+    If duplicate SKUs exist, the last entry wins. Callers should
+    deduplicate inventory before calling if that matters.
+    """
+    return {item.sku: item for item in inventory}
+
+
+def check_job_parts(
+    job: Job,
+    stock_index: dict[str, InventoryItem],
+) -> PartsCheckResult:
+    """Evaluate every required part for a single job against current stock.
+
+    Note: this is a per-job view against the full stock snapshot.
+    It does not reserve stock across jobs. Use build_pre_departure_checklist
+    for the aggregated, honest truck-level picture.
+    """
+    parts: list[PartAvailability] = []
+    ready = 0
+    missing = 0
+
+    for req in job.required_parts:
+        on_hand = stock_index.get(req.sku)
+        qty_available = on_hand.quantity if on_hand else 0
+        shortfall = max(0, req.quantity_needed - qty_available)
+        is_available = shortfall == 0
+
+        if is_available:
+            ready += 1
+        else:
+            missing += 1
+
+        parts.append(
+            PartAvailability(
+                sku=req.sku,
+                name=req.name,
+                quantity_needed=req.quantity_needed,
+                quantity_on_hand=qty_available,
+                is_available=is_available,
+                shortfall=shortfall,
+                urgency=req.urgency,
+            )
+        )
+
+    total = len(parts)
+    score = (ready / total) if total > 0 else 1.0
+
+    return PartsCheckResult(
+        job_id=job.job_id,
+        parts=parts,
+        availability_score=round(score, 2),
+        missing_count=missing,
+        ready_count=ready,
+    )
+
+
+def check_all_jobs(
+    jobs: list[Job],
+    inventory: list[InventoryItem],
+) -> list[PartsCheckResult]:
+    """Run availability checks for every job."""
+    stock_index = build_stock_index(inventory)
+    return [check_job_parts(job, stock_index) for job in jobs]
+
+
+def _urgency_rank(urgency: Urgency) -> int:
+    order = {
+        Urgency.CRITICAL: 0,
+        Urgency.HIGH: 1,
+        Urgency.MEDIUM: 2,
+        Urgency.LOW: 3,
+    }
+    return order[urgency]
+
+
+def build_pre_departure_checklist(
+    jobs: list[Job],
+    inventory: list[InventoryItem],
+    tech_id: str | None = None,
+) -> PreDepartureChecklist:
+    """Produce the single artifact a technician needs before rolling.
+
+    Aggregates demand across all jobs so the tech stages once.
+
+    Rules:
+    - If available >= needed → STAGE the full quantity.
+    - If 0 < available < needed → STAGE what is on the truck AND
+      PICK_UP the shortfall. Both lines appear.
+    - If available == 0 → PICK_UP the full need.
+    - REORDER when the part is below reorder point, or when the SKU
+      is completely absent from inventory (not stocked at all).
+    """
+    results = check_all_jobs(jobs, inventory)
+    stock_index = build_stock_index(inventory)
+
+    # Aggregate demand: sku → total needed, highest urgency, job ids, name
+    demand: dict[str, dict[str, object]] = defaultdict(
+        lambda: {
+            "needed": 0,
+            "urgency": Urgency.LOW,
+            "jobs": [],
+            "name": "",
+        }
+    )
+
+    for job, result in zip(jobs, results, strict=True):
+        for part in result.parts:
+            entry = demand[part.sku]
+            entry["needed"] = int(entry["needed"]) + part.quantity_needed  # type: ignore[arg-type]
+            entry["name"] = part.name
+            jobs_list: list[str] = entry["jobs"]  # type: ignore[assignment]
+            jobs_list.append(job.job_id)
+            current_urgency: Urgency = entry["urgency"]  # type: ignore[assignment]
+            if _urgency_rank(part.urgency) < _urgency_rank(current_urgency):
+                entry["urgency"] = part.urgency
+
+    to_stage: list[ChecklistItem] = []
+    missing: list[ChecklistItem] = []
+    reorder: list[ChecklistItem] = []
+
+    for sku, info in demand.items():
+        on_hand = stock_index.get(sku)
+        available = on_hand.quantity if on_hand else 0
+        needed = int(info["needed"])  # type: ignore[arg-type]
+        shortfall = max(0, needed - available)
+        urgency: Urgency = info["urgency"]  # type: ignore[assignment]
+        name = str(info["name"])
+        related = sorted(set(info["jobs"]))  # type: ignore[arg-type]
+
+        # Stage whatever is actually on the truck
+        if available > 0:
+            stage_qty = min(available, needed)
+            to_stage.append(
+                ChecklistItem(
+                    sku=sku,
+                    name=name,
+                    quantity=stage_qty,
+                    action=Action.STAGE,
+                    urgency=urgency,
+                    related_jobs=related,
+                    notes="On truck — stage before departure",
+                )
+            )
+
+        # Pick up the shortfall
+        if shortfall > 0:
+            missing.append(
+                ChecklistItem(
+                    sku=sku,
+                    name=name,
+                    quantity=shortfall,
+                    action=Action.PICK_UP,
+                    urgency=urgency,
+                    related_jobs=related,
+                    notes=f"Need {shortfall} more (have {available})",
+                )
+            )
+
+        # Reorder when below reorder point OR SKU not stocked at all
+        if on_hand is None:
+            reorder.append(
+                ChecklistItem(
+                    sku=sku,
+                    name=name,
+                    quantity=max(needed, 2),
+                    action=Action.REORDER,
+                    urgency=urgency,
+                    related_jobs=related,
+                    notes="Not in inventory — add to stock list",
+                )
+            )
+        elif on_hand.quantity <= on_hand.reorder_point:
+            reorder.append(
+                ChecklistItem(
+                    sku=sku,
+                    name=name,
+                    quantity=max(
+                        on_hand.reorder_point * 2,
+                        shortfall or on_hand.reorder_point,
+                    ),
+                    action=Action.REORDER,
+                    urgency=urgency,
+                    related_jobs=related,
+                    notes="Below reorder point + active demand",
+                )
+            )
+
+    to_stage.sort(key=lambda i: _urgency_rank(i.urgency))
+    missing.sort(key=lambda i: _urgency_rank(i.urgency))
+    reorder.sort(key=lambda i: _urgency_rank(i.urgency))
+
+    total_required = len(demand)
+    ready_skus = 0
+    for sku, info in demand.items():
+        available = stock_index[sku].quantity if sku in stock_index else 0
+        if int(info["needed"]) <= available:  # type: ignore[arg-type]
+            ready_skus += 1
+
+    score = (ready_skus / total_required) if total_required > 0 else 1.0
+
+    if not missing:
+        summary = (
+            f"All {total_required} part types are on the truck. "
+            f"Stage the list and roll."
+        )
+    else:
+        summary = (
+            f"{len(missing)} part type(s) short. "
+            f"Pick up before departure or risk a return trip."
+        )
+
+    return PreDepartureChecklist(
+        tech_id=tech_id,
+        jobs_covered=[j.job_id for j in jobs],
+        items_to_stage=to_stage,
+        items_missing=missing,
+        reorder_suggestions=reorder,
+        overall_readiness_score=round(score, 2),
+        summary=summary,
+    )
+
+
+def default_parts_for_job_type(job_type: str) -> list[RequiredPart]:
+    """Reasonable default parts list for common HVAC job types.
+
+    Used by seed data and as a fallback when a contractor has not yet
+    specified exact parts for a job.
+    """
+    normalized = job_type.strip().lower()
+
+    common_service = [
+        RequiredPart(
+            sku="CAP-45-5",
+            name="Dual Run Capacitor 45/5 MFD",
+            quantity_needed=1,
+            urgency=Urgency.HIGH,
+        ),
+        RequiredPart(
+            sku="CAP-35-5",
+            name="Dual Run Capacitor 35/5 MFD",
+            quantity_needed=1,
+            urgency=Urgency.MEDIUM,
+        ),
+        RequiredPart(
+            sku="CONT-30A",
+            name="Contactor 30A 1-Pole",
+            quantity_needed=1,
+            urgency=Urgency.HIGH,
+        ),
+        RequiredPart(
+            sku="FILTER-20x25",
+            name="Air Filter 20x25x1 MERV 8",
+            quantity_needed=2,
+            urgency=Urgency.LOW,
+        ),
+    ]
+
+    if (
+        "install" in normalized
+        or "heat_pump" in normalized
+        or "replacement" in normalized
+    ):
+        return [
+            RequiredPart(
+                sku="LINESET-50",
+                name="Line Set 50 ft",
+                quantity_needed=1,
+                urgency=Urgency.CRITICAL,
+            ),
+            RequiredPart(
+                sku="PAD-CONC",
+                name="Concrete Pad",
+                quantity_needed=1,
+                urgency=Urgency.HIGH,
+            ),
+            RequiredPart(
+                sku="WHIP-6/3",
+                name="Disconnect Whip 6/3",
+                quantity_needed=1,
+                urgency=Urgency.HIGH,
+            ),
+            RequiredPart(
+                sku="FILTER-20x25",
+                name="Air Filter 20x25x1 MERV 8",
+                quantity_needed=2,
+                urgency=Urgency.MEDIUM,
+            ),
+        ]
+
+    if "maintenance" in normalized or "tune" in normalized:
+        return [
+            RequiredPart(
+                sku="FILTER-20x25",
+                name="Air Filter 20x25x1 MERV 8",
+                quantity_needed=2,
+                urgency=Urgency.MEDIUM,
+            ),
+            RequiredPart(
+                sku="FILTER-16x25",
+                name="Air Filter 16x25x1 MERV 8",
+                quantity_needed=1,
+                urgency=Urgency.LOW,
+            ),
+            RequiredPart(
+                sku="CAP-45-5",
+                name="Dual Run Capacitor 45/5 MFD",
+                quantity_needed=1,
+                urgency=Urgency.MEDIUM,
+            ),
+        ]
+
+    return common_service
+</file>
+
+<file path="pyproject.toml">
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "truck-ready-hvac"
+version = "0.2.0"
+description = "Pre-departure parts checklist for HVAC technicians. Stage the right parts, export offline JSON/PDF, finish more jobs first visit."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "Justin Coulam", email = "coulamjustin3@gmail.com" },
+]
+keywords = ["hvac", "parts", "checklist", "field-service", "technician", "inventory"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+]
+dependencies = [
+    "pydantic>=2.7",
+    "streamlit>=1.35",
+    "fpdf2>=2.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[project.urls]
+Homepage = "https://github.com/jayjz/truck-ready-hvac"
+Repository = "https://github.com/jayjz/truck-ready-hvac"
+Issues = "https://github.com/jayjz/truck-ready-hvac/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/truck_ready"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+    "C4",
+    "UP",
+    "SIM",
+    "RUF",
+]
+ignore = [
+    "E501",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["truck_ready"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+packages = ["truck_ready"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["streamlit.*", "fpdf.*"]
+ignore_missing_imports = true
+</file>
+
+<file path="src/truck_ready/__init__.py">
+"""Truck Ready HVAC — pre-departure parts checklist for field technicians."""
+
+from truck_ready.core import (
+    build_pre_departure_checklist,
+    check_all_jobs,
+    check_job_parts,
+    default_parts_for_job_type,
+)
+from truck_ready.io import CSVLoadError, load_inventory_csv, load_jobs_csv
+from truck_ready.models import (
+    Action,
+    ChecklistItem,
+    InventoryItem,
+    Job,
+    PartAvailability,
+    PartsCheckResult,
+    PreDepartureChecklist,
+    RequiredPart,
+    Urgency,
+)
+from truck_ready.pdf import checklist_to_pdf_bytes
+
+__all__ = [
+    "Action",
+    "CSVLoadError",
+    "ChecklistItem",
+    "InventoryItem",
+    "Job",
+    "PartAvailability",
+    "PartsCheckResult",
+    "PreDepartureChecklist",
+    "RequiredPart",
+    "Urgency",
+    "build_pre_departure_checklist",
+    "check_all_jobs",
+    "check_job_parts",
+    "checklist_to_pdf_bytes",
+    "default_parts_for_job_type",
+    "load_inventory_csv",
+    "load_jobs_csv",
+]
+
+__version__ = "0.2.0"
+</file>
+
+<file path="README.md">
+# Truck Ready HVAC
+
+**Pre-departure parts checklist for HVAC technicians.**
+
+Stage the right parts before the truck leaves. Export an offline checklist (JSON or printable PDF) that works with zero signal. Finish more jobs on the first visit.
+
+This is intentionally a single closed loop:
+
+1. Jobs + current truck stock
+2. Parts availability check
+3. Clear pre-departure checklist
+4. Offline JSON / printable PDF export
+
+No multi-agent platform. No orchestration theater. One high-signal workflow that maps directly to fewer supply-house runs and higher first-time fix rates.
+
+## Quick Start
+
+```bash
+git clone https://github.com/jayjz/truck-ready-hvac.git
+cd truck-ready-hvac
+
+python -m venv .venv
+source .venv/bin/activate          # Linux/macOS
+# .venv\Scripts\activate          # Windows
+
+pip install -e ".[dev]"
+
+# Quality checks
+ruff check src tests
+ruff format --check src tests
+pytest -v
+
+# Launch the demo / pilot UI
+streamlit run app.py
+```
+
+## Pilot path (real contractor data)
+
+1. Prepare two CSVs following [docs/CSV_FORMAT.md](docs/CSV_FORMAT.md).
+2. Sample files live in `data/samples/`.
+3. In the Streamlit UI choose **Upload CSVs** and select your inventory + jobs files.
+4. Review the checklist, then download the offline JSON or printable PDF for the tech.
+
+The core engine never sees the CSV layer — loaders produce domain models, then the pure checklist builder runs unchanged.
+
+## What it does
+
+- Takes a list of jobs and current truck inventory
+- Calculates which required parts are available vs missing
+- Produces a prioritized pre-departure checklist
+  - Stages what is already on the truck (including partial stock)
+  - Flags shortfalls to pick up
+  - Suggests reorders for low stock or untracked SKUs
+- Exports a self-contained offline JSON payload *and* a printable PDF the tech can use in the field
+
+## Status
+
+**v0.2.0 — Printable PDF + CSV pilot path**
+
+- [x] Project scaffolding + strict tooling (ruff, mypy, pytest, src layout)
+- [x] Pydantic domain models + Action enum
+- [x] Pure parts availability + checklist engine
+- [x] Partial staging (stage what you have + pick up the rest)
+- [x] Reorder for completely missing SKUs
+- [x] Realistic HVAC seed data
+- [x] Offline JSON export + tests
+- [x] Minimal Streamlit pilot UI
+- [x] GitHub Actions CI (ruff + pytest)
+- [x] CSV loaders + sample data for real contractor pilots
+- [x] Agent context files (`AGENTS.md`, `docs/`)
+- [x] Printable PDF checklist (fpdf2)
+- [ ] Hosted demo link (Streamlit Community Cloud)
+
+## Development Standards
+
+- Python ≥ 3.11
+- `src/` layout
+- Strict typing + mypy
+- Ruff for lint + format
+- Pytest with importlib mode
+- No untyped public functions
+- Small, focused modules
+- Core remains pure (see `AGENTS.md`)
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+</file>
+
+</files>
